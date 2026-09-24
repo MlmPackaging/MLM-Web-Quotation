@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/images/MLM Logo.png">
+    <title>Create Customer Account — MLM Packaging</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <style>
+        :root {
+            --green-900: #0a2e1f;
+            --green-800: #0f3d29;
+            --green-700: #145233;
+            --green-600: #1a6b42;
+            --green-400: #2d9e69;
+            --green-200: #9fd8bb;
+            --green-100: #d4f0e2;
+            --gold: #c9a84c;
+            --gold-light: #e8d5a3;
+            --white: #ffffff;
+            --text: #1a2e22;
+            --muted: #5a7a66;
+            --danger: #c0392b;
+            --danger-bg: #fdf0ef;
+            --success: #1a6b42;
+            --success-bg: #e8f5ee;
+            --border: rgba(26, 107, 66, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--green-900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            position: relative;
+            padding: 32px 0;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 60% at 80% 20%, rgba(45, 158, 105, 0.16) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 50% at 20% 80%, rgba(201, 168, 76, 0.09) 0%, transparent 55%),
+                radial-gradient(ellipse 40% 40% at 40% 10%, rgba(26, 107, 66, 0.13) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .page-wrapper {
+            display: flex;
+            align-items: stretch;
+            width: min(980px, 97vw);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 1;
+            animation: fadeUp 0.7s ease both;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.97);
+            padding: 48px 44px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-header {
+            margin-bottom: 28px;
+        }
+
+        .form-header h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.9rem;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .form-header p {
+            font-size: 0.88rem;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .divider-line {
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--green-400), var(--gold));
+            border-radius: 2px;
+            margin: 12px 0 0;
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 16px;
+        }
+
+        .field-group {
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .field-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 7px;
+        }
+
+        .field-label .optional {
+            text-transform: none;
+            font-weight: 400;
+            letter-spacing: 0;
+            opacity: 0.7;
+        }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 15px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .field-status-icon {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        input.input-field,
+        textarea.input-field {
+            width: 100%;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 13px 44px 13px 42px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            background: #fafffe;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            -webkit-appearance: none;
+        }
+
+        textarea.input-field {
+            padding-left: 14px;
+            resize: vertical;
+            min-height: 64px;
+        }
+
+        input.input-field::placeholder,
+        textarea.input-field::placeholder {
+            color: #aac0b2;
+        }
+
+        input.input-field:focus,
+        textarea.input-field:focus {
+            border-color: var(--green-400);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(45, 158, 105, 0.12);
+        }
+
+        input.input-field.is-valid {
+            border-color: var(--success);
+        }
+
+        input.input-field.is-valid+.field-status-icon {
+            opacity: 1;
+            color: var(--success);
+        }
+
+        input.input-field.is-error {
+            border-color: var(--danger);
+        }
+
+        input.input-field.is-error+.field-status-icon {
+            opacity: 1;
+            color: var(--danger);
+        }
+
+        .field-hint {
+            font-size: 0.75rem;
+            margin-top: 5px;
+            padding-left: 2px;
+            min-height: 16px;
+            transition: color 0.2s;
+            color: var(--muted);
+        }
+
+        .field-hint.error {
+            color: var(--danger);
+        }
+
+        .field-hint.success {
+            color: var(--success);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            background: linear-gradient(135deg, var(--green-600), var(--green-400));
+            color: white;
+            cursor: pointer;
+            letter-spacing: 0.02em;
+            transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(26, 107, 66, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 28px rgba(26, 107, 66, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-banner {
+            display: none;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 0.85rem;
+            margin-top: 14px;
+            align-items: flex-start;
+            gap: 10px;
+            line-height: 1.5;
+        }
+
+        .status-banner.error {
+            display: flex;
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid rgba(192, 57, 43, 0.2);
+        }
+
+        .status-banner.success {
+            display: flex;
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid rgba(26, 107, 66, 0.2);
+        }
+
+        .form-footer {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        .form-footer a {
+            color: var(--green-600);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .form-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .brand-panel {
+            width: 280px;
+            flex-shrink: 0;
+            background: linear-gradient(160deg, var(--green-700) 0%, var(--green-900) 100%);
+            padding: 48px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            top: -80px;
+            right: -80px;
+            width: 280px;
+            height: 280px;
+            border: 1px solid rgba(201, 168, 76, 0.1);
+            border-radius: 50%;
+        }
+
+        .logo-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .logo-img {
+            width: 68px;
+            height: 68px;
+            object-fit: contain;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 8px;
+            border: 1px solid rgba(201, 168, 76, 0.2);
+        }
+
+        .logo-fallback {
+            width: 68px;
+            height: 68px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(201, 168, 76, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .brand-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            color: var(--white);
+            line-height: 1.2;
+        }
+
+        .brand-tagline {
+            font-size: 0.75rem;
+            color: var(--gold);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .brand-features {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--gold);
+            flex-shrink: 0;
+        }
+
+        .feature-item span {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.65);
+            line-height: 1.4;
+        }
+
+        .brand-footer {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.28);
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20% {
+                transform: translateX(-6px);
+            }
+
+            40% {
+                transform: translateX(6px);
+            }
+
+            60% {
+                transform: translateX(-4px);
+            }
+
+            80% {
+                transform: translateX(4px);
+            }
+        }
+
+        .shake {
+            animation: shake 0.45s ease;
+        }
+
+        @media (max-width: 760px) {
+            .brand-panel {
+                display: none;
+            }
+
+            .fields-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-panel {
+                padding: 36px 24px;
+                border-radius: 24px;
+            }
+
+            .page-wrapper {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page-wrapper">
+        <!-- Form Panel -->
+        <div class="form-panel">
+            <div class="form-header">
+                <h1>Create your customer account</h1>
+                <p>Register your company to build bag specifications and request quotations.</p>
+                <div class="divider-line"></div>
+            </div>
+
+            <form id="registerForm" novalidate>
+                <div class="fields-grid">
+                    <div class="field-group full">
+                        <label class="field-label" for="companyName">Company name</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🏢</span>
+                            <input class="input-field" type="text" id="companyName" placeholder="Your company Sdn Bhd"
+                                autocomplete="organization" />
+                            <span class="field-status-icon" id="companyNameIcon">✓</span>
+                        </div>
+                        <div class="field-hint" id="companyNameHint"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="companyRegNo"><span>Company registration no.</span>
+                            <span class="optional">(optional)</span></label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🧾</span>
+                            <input class="input-field" type="text" id="companyRegNo" placeholder="e.g. 201901234567" />
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="contactPerson">Contact person</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🙍</span>
+                            <input class="input-field" type="text" id="contactPerson" placeholder="Full name"
+                                autocomplete="name" />
+                            <span class="field-status-icon" id="contactPersonIcon">✓</span>
+                        </div>
+                        <div class="field-hint" id="contactPersonHint"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="email">Email address</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">✉️</span>
+                            <input class="input-field" type="text" id="email" placeholder="yourname@company.com"
+                                autocomplete="email" />
+                            <span class="field-status-icon" id="emailIcon">✓</span>
+                        </div>
+                        <div class="field-hint" id="emailHint"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="phone"><span>Phone</span> <span class="optional">(optional)</span></label>
+                        <div class="input-wrap">
+                            <span class="input-icon">📞</span>
+                            <input class="input-field" type="text" id="phone" placeholder="+60 12-345 6789"
+                                autocomplete="tel" />
+                        </div>
+                    </div>
+
+                    <div class="field-group full">
+                        <label class="field-label" for="address"><span>Company address</span> <span
+                                class="optional">(optional)</span></label>
+                        <div class="input-wrap">
+                            <textarea class="input-field" id="address" rows="2"
+                                placeholder="Street, area, postcode, state, country" autocomplete="street-address"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="password">Password</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🔑</span>
+                            <input class="input-field" type="password" id="password" placeholder="At least 8 characters"
+                                autocomplete="new-password" />
+                            <span class="field-status-icon" id="pwIcon">✓</span>
+                        </div>
+                        <div class="field-hint" id="pwHint"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label" for="confirmPassword">Confirm password</label>
+                        <div class="input-wrap">
+                            <span class="input-icon">🔑</span>
+                            <input class="input-field" type="password" id="confirmPassword" placeholder="Re-enter password"
+                                autocomplete="new-password" />
+                            <span class="field-status-icon" id="confirmPwIcon">✓</span>
+                        </div>
+                        <div class="field-hint" id="confirmPwHint"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <div class="btn-spinner" id="spinner"></div>
+                    <span id="submitText">Create account →</span>
+                </button>
+            </form>
+
+            <div class="status-banner" id="statusBanner">
+                <span id="statusIcon">⚠</span>
+                <span id="statusMsg"></span>
+            </div>
+
+            <div class="form-footer">
+                Already have an account? <a href="/customer-login.html">Sign in</a>
+            </div>
+        </div>
+
+        <!-- Brand Panel -->
+        <div class="brand-panel">
+            <div class="logo-block">
+                <img src="/images/MLM Logo.png" alt="MLM Packaging Logo" class="logo-img"
+                    onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';" />
+                <div class="logo-fallback" id="logoFallback" style="display:none;">📦</div>
+                <div>
+                    <div class="brand-name">MLM Packaging</div>
+                    <div class="brand-tagline">Customer Portal</div>
+                </div>
+            </div>
+
+            <div class="brand-features">
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span>One account for your whole company</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span>A dedicated customer code once you register</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-dot"></div>
+                    <span>Go straight to your quotation after signing up</span>
+                </div>
+            </div>
+
+            <div class="brand-footer">© 2025 MLM Packaging Sdn Bhd<br>All rights reserved.</div>
+        </div>
+    </div>
+
+    <script>
+        const companyNameEl = document.getElementById('companyName');
+        const contactPersonEl = document.getElementById('contactPerson');
+        const emailEl = document.getElementById('email');
+        const pwEl = document.getElementById('password');
+        const confirmPwEl = document.getElementById('confirmPassword');
+
+        const companyNameIcon = document.getElementById('companyNameIcon');
+        const contactPersonIcon = document.getElementById('contactPersonIcon');
+        const emailIcon = document.getElementById('emailIcon');
+        const pwIcon = document.getElementById('pwIcon');
+        const confirmPwIcon = document.getElementById('confirmPwIcon');
+
+        const companyNameHint = document.getElementById('companyNameHint');
+        const contactPersonHint = document.getElementById('contactPersonHint');
+        const emailHint = document.getElementById('emailHint');
+        const pwHint = document.getElementById('pwHint');
+        const confirmPwHint = document.getElementById('confirmPwHint');
+
+        function setInputState(inputEl, iconEl, hintEl, state, msg) {
+            inputEl.classList.remove('is-valid', 'is-error');
+            hintEl.className = 'field-hint';
+            if (state === 'valid') {
+                inputEl.classList.add('is-valid');
+                iconEl.textContent = '✓'; iconEl.style.opacity = '1'; iconEl.style.color = '#1a6b42';
+                hintEl.classList.add('success');
+            } else if (state === 'error') {
+                inputEl.classList.add('is-error');
+                iconEl.textContent = '✕'; iconEl.style.opacity = '1'; iconEl.style.color = '#c0392b';
+                hintEl.classList.add('error');
+            } else {
+                iconEl.style.opacity = '0';
+            }
+            hintEl.textContent = msg || '';
+        }
+
+        function clearErrorOnInput(inputEl, iconEl, hintEl, isValidFn) {
+            inputEl.addEventListener('input', () => {
+                if (inputEl.classList.contains('is-error') && isValidFn(inputEl.value)) {
+                    setInputState(inputEl, iconEl, hintEl, 'neutral', '');
+                }
+            });
+        }
+
+        clearErrorOnInput(companyNameEl, companyNameIcon, companyNameHint, v => v.trim().length > 0);
+        clearErrorOnInput(contactPersonEl, contactPersonIcon, contactPersonHint, v => v.trim().length > 0);
+        clearErrorOnInput(emailEl, emailIcon, emailHint, v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()));
+        clearErrorOnInput(pwEl, pwIcon, pwHint, v => v.length >= 8);
+        clearErrorOnInput(confirmPwEl, confirmPwIcon, confirmPwHint, v => v === pwEl.value && v.length > 0);
+
+        function showBanner(type, msg) {
+            const b = document.getElementById('statusBanner');
+            document.getElementById('statusIcon').textContent = type === 'error' ? '⚠' : '✓';
+            document.getElementById('statusMsg').textContent = msg;
+            b.className = 'status-banner ' + type;
+        }
+
+        function hideBanner() {
+            document.getElementById('statusBanner').className = 'status-banner';
+        }
+
+        function shakeForm() {
+            const form = document.getElementById('registerForm');
+            form.classList.remove('shake');
+            void form.offsetWidth;
+            form.classList.add('shake');
+        }
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideBanner();
+
+            const companyName = companyNameEl.value.trim();
+            const companyRegNo = document.getElementById('companyRegNo').value.trim();
+            const contactPerson = contactPersonEl.value.trim();
+            const email = emailEl.value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const address = document.getElementById('address').value.trim();
+            const password = pwEl.value;
+            const confirmPassword = confirmPwEl.value;
+
+            let hasError = false;
+            if (!companyName) {
+                setInputState(companyNameEl, companyNameIcon, companyNameHint, 'error', 'Please enter your company name.');
+                hasError = true;
+            }
+            if (!contactPerson) {
+                setInputState(contactPersonEl, contactPersonIcon, contactPersonHint, 'error', 'Please enter a contact person.');
+                hasError = true;
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                setInputState(emailEl, emailIcon, emailHint, 'error', 'Please enter a valid email address.');
+                hasError = true;
+            }
+            if (!password || password.length < 8) {
+                setInputState(pwEl, pwIcon, pwHint, 'error', 'Password must be at least 8 characters.');
+                hasError = true;
+            }
+            if (confirmPassword !== password || !confirmPassword) {
+                setInputState(confirmPwEl, confirmPwIcon, confirmPwHint, 'error', 'Passwords do not match.');
+                hasError = true;
+            }
+            if (hasError) return;
+
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const label = document.getElementById('submitText');
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            label.textContent = 'Creating account…';
+
+            try {
+                const res = await fetch('/api/customer/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_name: companyName,
+                        company_registration_no: companyRegNo,
+                        contact_person: contactPerson,
+                        email,
+                        phone,
+                        address,
+                        password,
+                    })
+                });
+
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok) {
+                    showBanner('success', `Account created! Your customer code is ${data.customer?.customer_code || ''}. Redirecting…`);
+                    label.textContent = 'Done!';
+                    spinner.style.display = 'none';
+                    localStorage.setItem('customer', JSON.stringify(data.customer));
+                    sessionStorage.removeItem('customer');
+                    setTimeout(() => {
+                        window.location.href = data.redirect || '/quotation.html';
+                    }, 1400);
+                } else {
+                    shakeForm();
+                    spinner.style.display = 'none';
+                    btn.disabled = false;
+                    label.textContent = 'Create account →';
+                    if (res.status === 409) {
+                        setInputState(emailEl, emailIcon, emailHint, 'error', 'An account with this email already exists.');
+                    }
+                    showBanner('error', data.message || 'Registration failed. Please try again.');
+                }
+            } catch (err) {
+                shakeForm();
+                showBanner('error', 'Network error — please check your internet connection and try again.');
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                label.textContent = 'Create account →';
+            }
+        });
+    </script>
+</body>
+
+</html>
