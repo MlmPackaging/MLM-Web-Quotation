@@ -664,7 +664,7 @@
             if (!requested && !pending) return '';
             try {
                 const target = new URL(requested || pending, window.location.origin);
-                if (target.origin !== window.location.origin || target.pathname === '/customer-login.html') return '';
+                if (target.origin !== window.location.origin || target.pathname === '/customerlogin.html') return '';
                 const normalized = `${target.pathname}${target.search}${target.hash}`;
                 sessionStorage.setItem('post-login-return', normalized);
                 return normalized;

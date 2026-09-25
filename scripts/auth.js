@@ -1,173 +1,160 @@
-// ================================
-// 🔐 CUSTOMER-AUTH.JS (quotation.html)
-// ================================
-// Lightweight companion to auth.js, but for customer accounts rather than
-// staff/admin "user" accounts. It fills in the topbar's profile chip and
-// wires up the logout button. Unlike auth.js it does not hide the page
-// while checking — quotation.html should keep working immediately from a
-// cached session, and only bounce to customer-login.html if there truly
-// is no session, or the background check finds it's no longer valid.
+// customerAuth.js
+// Shared by any customer-facing page that includes the standard
+// .profile-menu topbar markup (currently quotation.html).
+//
+// Session storage contract (matches customer-login.html / register-customer.html):
+//   localStorage.customer   -> persisted session ("remember me")
+//   sessionStorage.customer -> tab-only session
+// Both hold the JSON object returned by the API as `customer`.
+(function () {
+  "use strict";
 
-function getCustomerRaw() {
-  const ss = sessionStorage.getItem("customer");
-  if (ss) return ss;
-  const ls = localStorage.getItem("customer");
-  if (ls) {
-    // sessionStorage is per-tab; rehydrate from localStorage for new tabs
-    sessionStorage.setItem("customer", ls);
-    return ls;
-  }
-  return null;
-}
-
-function getCurrentCustomer() {
-  const raw = getCustomerRaw();
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn("Failed to parse stored customer:", error);
-    return null;
-  }
-}
-
-function customerInitials(customer) {
-  const source = (customer?.contact_person || customer?.company_name || "?").trim();
-  const parts = source.split(/\s+/).filter(Boolean);
-  const initials = parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("");
-  return initials || "?";
-}
-
-function redirectToCustomerLogin() {
-  try {
-    const here = window.location.pathname + window.location.search + window.location.hash;
-    sessionStorage.setItem("post-login-return", here);
-  } catch (error) {
-    console.warn("Could not store return target:", error);
-  }
-  window.location.href = "/customer-login.html";
-}
-
-function renderProfile(customer) {
-  const name = customer?.contact_person || customer?.company_name || "Customer";
-  const email = customer?.customer_email || "";
-  const avatar = customerInitials(customer);
-
-  const nameEl = document.getElementById("profileName");
-  const emailEl = document.getElementById("profileEmail");
-  const avatarEl = document.getElementById("profileAvatar");
-  const dropdownNameEl = document.getElementById("dropdownName");
-  const dropdownEmailEl = document.getElementById("dropdownEmail");
-  const dropdownCompanyEl = document.getElementById("dropdownCompany");
-
-  if (nameEl) nameEl.textContent = name;
-  if (emailEl) emailEl.textContent = email;
-  if (avatarEl) avatarEl.textContent = avatar;
-  if (dropdownNameEl) dropdownNameEl.textContent = name;
-  if (dropdownEmailEl) dropdownEmailEl.textContent = email;
-  if (dropdownCompanyEl) dropdownCompanyEl.textContent = customer?.company_name || "";
-}
-
-function setupProfileMenuToggle() {
-  const chip = document.getElementById("profileChip");
-  const dropdown = document.getElementById("profileDropdown");
-  if (!chip || !dropdown) return;
-
-  function close() {
-    dropdown.hidden = true;
-    chip.setAttribute("aria-expanded", "false");
-  }
-
-  chip.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const willOpen = dropdown.hidden;
-    dropdown.hidden = !willOpen;
-    chip.setAttribute("aria-expanded", String(willOpen));
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!dropdown.hidden && !dropdown.contains(event.target) && event.target !== chip) close();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") close();
-  });
-}
-
-async function logoutCustomer() {
-  const btn = document.getElementById("logoutBtn");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = "Logging out…";
-  }
-  try {
-    const customer = getCurrentCustomer();
-    await fetch("/api/customer/logout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: customer?.customer_email || "",
-        customer_id: customer?.customer_id || "",
-      }),
-      keepalive: true,
-    });
-  } catch (error) {
-    console.warn("Customer logout call failed:", error);
-  }
-
-  sessionStorage.removeItem("customer");
-  localStorage.removeItem("customer");
-  window.location.replace("/customer-login.html");
-}
-
-function setupLogoutButton() {
-  const btn = document.getElementById("logoutBtn");
-  if (!btn) return;
-  btn.addEventListener("click", (event) => {
-    event.preventDefault();
-    logoutCustomer();
-  });
-}
-
-// Re-validates the cached session against the server in the background.
-// The page already rendered from the cached copy, so this only needs to
-// react when the account turns out to be gone or deactivated.
-async function verifyCustomerSession(customer) {
-  try {
-    const res = await fetch("/api/customer/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customer_id: customer.customer_id,
-        email: customer.customer_email,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.valid) {
-      sessionStorage.removeItem("customer");
-      localStorage.removeItem("customer");
-      redirectToCustomerLogin();
-      return;
+  function readStoredCustomer() {
+    try {
+      const raw = localStorage.getItem("customer") || sessionStorage.getItem("customer");
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
     }
-    // Keep the cached copy fresh in case details changed server-side.
-    const updated = JSON.stringify(data.customer);
-    if (localStorage.getItem("customer")) localStorage.setItem("customer", updated);
-    sessionStorage.setItem("customer", updated);
-    renderProfile(data.customer);
-  } catch (error) {
-    console.warn("Customer session check failed:", error);
   }
-}
 
-function initCustomerAuth() {
-  const customer = getCurrentCustomer();
-  if (!customer) {
-    redirectToCustomerLogin();
+  function clearStoredCustomer() {
+    try { localStorage.removeItem("customer"); } catch (e) {}
+    try { sessionStorage.removeItem("customer"); } catch (e) {}
+  }
+
+  function initials(customer) {
+    const source = (customer.contact_person || customer.company_name || customer.customer_email || "?").trim();
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return source.slice(0, 2).toUpperCase() || "?";
+  }
+
+  function loginUrl(returnPath) {
+    const target = returnPath || (window.location.pathname + window.location.search);
+    return "/customerlogin.html?returnTo=" + encodeURIComponent(target);
+  }
+
+  const els = {
+    chip: document.getElementById("profileChip"),
+    avatar: document.getElementById("profileAvatar"),
+    name: document.getElementById("profileName"),
+    email: document.getElementById("profileEmail"),
+    menu: document.getElementById("profileMenu"),
+    dropdown: document.getElementById("profileDropdown"),
+    dropdownName: document.getElementById("dropdownName"),
+    dropdownEmail: document.getElementById("dropdownEmail"),
+    dropdownCompany: document.getElementById("dropdownCompany"),
+    logoutBtn: document.getElementById("logoutBtn"),
+    signInBtn: document.getElementById("dropdownSignIn"),
+    registerBtn: document.getElementById("dropdownRegister"),
+  };
+
+  // Nothing to do if this page doesn't have the profile markup.
+  if (!els.chip) {
+    window.CustomerAuth = {
+      isLoggedIn: function () { return false; },
+      getCustomer: function () { return null; },
+      requireLogin: function (returnPath) { window.location.href = loginUrl(returnPath); },
+      logout: function () { return Promise.resolve(); },
+      refresh: function () { return Promise.resolve(); },
+    };
     return;
   }
-  renderProfile(customer);
-  setupProfileMenuToggle();
-  setupLogoutButton();
-  verifyCustomerSession(customer);
-}
 
-window.addEventListener("DOMContentLoaded", initCustomerAuth);
+  let currentCustomer = null;
+
+  function renderGuest() {
+    currentCustomer = null;
+    els.avatar.textContent = "G";
+    els.name.textContent = "Guest";
+    els.email.textContent = "Not signed in";
+    els.dropdownName.textContent = "Browsing as a guest";
+    els.dropdownEmail.textContent = "Sign in to submit a quotation request.";
+    els.dropdownCompany.textContent = "";
+    if (els.logoutBtn) els.logoutBtn.hidden = true;
+    if (els.signInBtn) els.signInBtn.hidden = false;
+    if (els.registerBtn) els.registerBtn.hidden = false;
+    document.dispatchEvent(new CustomEvent("customerauth:change", { detail: { loggedIn: false, customer: null } }));
+  }
+
+  function renderCustomer(customer) {
+    currentCustomer = customer;
+    const name = customer.contact_person || customer.company_name || "Your account";
+    els.avatar.textContent = initials(customer);
+    els.name.textContent = name;
+    els.email.textContent = customer.customer_email || "";
+    els.dropdownName.textContent = name;
+    els.dropdownEmail.textContent = customer.customer_email || "";
+    els.dropdownCompany.textContent = customer.company_name || "";
+    if (els.logoutBtn) els.logoutBtn.hidden = false;
+    if (els.signInBtn) els.signInBtn.hidden = true;
+    if (els.registerBtn) els.registerBtn.hidden = true;
+    document.dispatchEvent(new CustomEvent("customerauth:change", { detail: { loggedIn: true, customer: customer } }));
+  }
+
+  async function refresh() {
+    const stored = readStoredCustomer();
+    if (!stored) { renderGuest(); return; }
+    try {
+      const res = await fetch("/api/customer/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customer_id: stored.customer_id, email: stored.customer_email }),
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.valid) {
+        renderCustomer(data.customer || stored);
+      } else {
+        clearStoredCustomer();
+        renderGuest();
+      }
+    } catch (err) {
+      // Network hiccup: trust the cached session rather than bouncing a real
+      // customer down to guest just because one check request failed.
+      renderCustomer(stored);
+    }
+  }
+
+  async function logout() {
+    if (els.logoutBtn) { els.logoutBtn.disabled = true; els.logoutBtn.textContent = "Signing out…"; }
+    try { await fetch("/api/customer/logout", { method: "POST" }); } catch (e) {}
+    clearStoredCustomer();
+    if (els.logoutBtn) { els.logoutBtn.disabled = false; els.logoutBtn.textContent = "Log out"; }
+    closeDropdown();
+    renderGuest();
+  }
+
+  function openDropdown() {
+    els.dropdown.hidden = false;
+    els.chip.setAttribute("aria-expanded", "true");
+  }
+  function closeDropdown() {
+    els.dropdown.hidden = true;
+    els.chip.setAttribute("aria-expanded", "false");
+  }
+
+  els.chip.addEventListener("click", function (e) {
+    e.stopPropagation();
+    if (els.dropdown.hidden) openDropdown(); else closeDropdown();
+  });
+  document.addEventListener("click", function (e) {
+    if (els.menu && !els.menu.contains(e.target)) closeDropdown();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeDropdown();
+  });
+  if (els.logoutBtn) els.logoutBtn.addEventListener("click", logout);
+  if (els.signInBtn) els.signInBtn.addEventListener("click", function () { window.location.href = loginUrl(); });
+  if (els.registerBtn) els.registerBtn.addEventListener("click", function () { window.location.href = "/register-customer.html"; });
+
+  window.CustomerAuth = {
+    isLoggedIn: function () { return !!currentCustomer; },
+    getCustomer: function () { return currentCustomer; },
+    requireLogin: function (returnPath) { window.location.href = loginUrl(returnPath); },
+    logout: logout,
+    refresh: refresh,
+  };
+
+  refresh();
+})();

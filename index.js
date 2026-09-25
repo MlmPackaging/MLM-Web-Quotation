@@ -8,9 +8,11 @@ require("dotenv").config();
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const publicDirectory = path.join(__dirname, "public");
+const scriptsDirectory = path.join(__dirname, "scripts");
 
 app.use(express.json());
 app.use(express.static(publicDirectory));
+app.use("/scripts", express.static(scriptsDirectory));
 
 function publicUser(user) {
   return {
