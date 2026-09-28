@@ -1,4 +1,4 @@
-<!doctype html>
+<!-- <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -321,6 +321,101 @@ const embeddedBagImages={"bag-01.webp": "data:image/webp;base64,UklGRtAsAABXRUJQ
     selectBag(1);
     loadQuoteDraftIfAny();
   </script>
+  <script src="/scripts/auth.js"></script>
+</body>
+</html> -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak PTH_V5 — Customise your bag</title>
+  <meta name="description" content="Configure a twisted-handle shopping bag and prepare an instant quotation specification for Malaysia or Singapore.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='14' width='64' height='64' fill='%2308231b'/%3E%3Cpath d='M18 25h28l-2 27H20z' fill='%23fff'/%3E%3Cpath d='M25 27v-6a7 7 0 0114 0v6' fill='none' stroke='%23c7ff33' stroke-width='4'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/quotation.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak<span>™</span> PTH_V5</div>
+    <div class="topbar-right">
+      <div class="secure">Instant specification · Malaysia &amp; Singapore</div>
+      <div class="profile-menu" id="profileMenu">
+        <button type="button" class="profile-chip" id="profileChip" aria-haspopup="true" aria-expanded="false">
+          <span class="profile-avatar" id="profileAvatar">–</span>
+          <span class="profile-text"><strong id="profileName">Loading…</strong><small id="profileEmail"></small></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown" hidden>
+          <div class="profile-dropdown-header">
+            <strong id="dropdownName"></strong>
+            <small id="dropdownEmail"></small>
+            <small class="profile-dropdown-company" id="dropdownCompany"></small>
+          </div>
+          <button type="button" class="signin-btn" id="dropdownSignIn" hidden>Sign in</button>
+          <button type="button" class="register-link" id="dropdownRegister" hidden>Create free account</button>
+          <button type="button" class="logout-btn" id="logoutBtn" hidden>Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="intro"><div><div class="eyebrow">Twisted-handle shopping bags</div><h1>Choose a bag. Get your specification ready.</h1><p>Select a gallery bag and we will pre-fill its recommended size, material and printing. You can change any detail before requesting the quotation.</p></div><div class="stepcount">6 details · about 1 minute</div></div>
+    <div class="layout">
+      <form class="panel" id="quoteForm" novalidate>
+        <h2 class="section-title"><span class="num">1</span>Select gallery bag</h2>
+        <p class="gallery-note">Choose the same printed bag you viewed in the gallery. The dot confirms its recommended material.</p>
+        <div class="bag-grid" id="bagGrid"></div><p class="gallery-note">Proportional visual guide. Printed artwork is stretched with the preview; final artwork and construction require confirmation.</p>
+        <div class="fields">
+          <div class="field full"><label>1. Bag dimensions <span class="help">Height × Width × Gusset · shape and labels update as you type</span></label><div class="triple"><div class="unit"><input id="height" type="number" min="100" max="600" aria-label="Height in millimetres"></div><div class="unit"><input id="width" type="number" min="80" max="500" aria-label="Width in millimetres"></div><div class="unit"><input id="gusset" type="number" min="40" max="300" aria-label="Gusset in millimetres"></div></div></div>
+          <div class="field"><div class="material-heading"><label for="material">2. Bag material</label><div class="volume-readout" aria-live="polite"><span>1 bag volume</span><span><output id="bagVolume">—</output> m<sup>3</sup></span></div></div>
+          <div class="volume-help" id="volumeHelp"><button class="details-link" type="button" id="volumeDetails" aria-expanded="false" aria-controls="volumePopup">More details</button><div class="volume-popup" id="volumePopup" hidden><p><strong>How is bag volume calculated?</strong></p><p>Convert each size from millimetres to metres, then multiply height × width × gusset.</p><p id="volumeFormula"></p><p>CBM means cubic metres (m³). This estimates the space inside an open bag, not its carrying weight or packed shipping volume. The result is rounded to 5 decimal places.</p></div></div>
+          <select class="control" id="material"><option value="">Loading…</option></select>
+          <div class="material-advice" id="materialAdvice" hidden aria-live="polite"><p id="materialAdviceText"></p><button type="button" class="apply-material" id="applyMaterial"></button></div><p class="help" id="strengthHelp" hidden>140 gsm is a heavier paper option. MPak will confirm suitability for your contents and carrying weight.</p></div>
+          <div class="field"><label for="print">3. Printing detail</label><select class="control" id="print"><option value="">Loading…</option></select></div>
+          <div class="field"><label for="handle">4. Handle</label><select class="control" id="handle"><option value="">Loading…</option></select></div>
+          <section class="field full quantities" id="quantitySection" aria-labelledby="quantityHeading">
+            <h2 id="quantityHeading">5. Quantities to quote</h2>
+            <p>Compare prices for four quantities. Choose a suggested set or enter your own.</p>
+            <label for="desiredQty">How many bags do you need?</label>
+            <div class="desired-row"><input class="control" id="desiredQty" type="text" inputmode="numeric" placeholder="Enter quantity · pcs" aria-describedby="desiredHelp"><button type="button" class="qty-button" id="showOptions">Show quantity options</button></div>
+            <div class="help" id="desiredHelp">Minimum order: 500 pcs.</div>
+            <p class="qty-error" id="quantityError" role="alert"></p>
+            <div id="quantityOptions" hidden>
+              <p id="optionsIntro"></p>
+              <fieldset class="set-options"><legend>Choose a quantity set</legend><div id="suggestedSets"></div>
+                <label class="set-card"><input type="radio" name="qtySet" value="4"><span><strong>Set 4: Enter my own quantities (MOQ is 500 pcs)</strong></span></label>
+              </fieldset>
+              <div id="customQuantities" hidden>
+                <p>Enter four different quantities in pieces, in any order. We’ll arrange them from smallest to largest for you to review and confirm.</p>
+                <div class="tier-inputs"><div><label for="tier1">Quantity 1</label><input class="control" id="tier1" type="text" inputmode="numeric" placeholder="pcs" aria-label="Quantity 1 in pieces"></div><div><label for="tier2">Quantity 2</label><input class="control" id="tier2" type="text" inputmode="numeric" placeholder="pcs" aria-label="Quantity 2 in pieces"></div><div><label for="tier3">Quantity 3</label><input class="control" id="tier3" type="text" inputmode="numeric" placeholder="pcs" aria-label="Quantity 3 in pieces"></div><div><label for="tier4">Quantity 4</label><input class="control" id="tier4" type="text" inputmode="numeric" placeholder="pcs" aria-label="Quantity 4 in pieces"></div></div>
+                <button type="button" class="qty-button" id="reviewQuantities">Review my quantities</button>
+                <div id="quantityReview" class="qty-review" hidden><strong>Please confirm your quantities</strong><p>We’ve arranged your quantities from smallest to largest. Your quotation will include these four quantities, all based on the same bag specifications.</p><div id="sortedQuantities" class="tier-values"></div><div class="qty-actions"><button type="button" class="qty-button secondary" id="editQuantities">Edit quantities</button><button type="button" class="qty-button" id="confirmQuantities">Confirm quantities</button></div></div>
+              </div>
+              <p id="quantityStatus" class="qty-status" aria-live="polite"></p>
+              <p class="help">Four alternative order quantities in one quotation — quantities are not added together.</p>
+            </div>
+          </section>
+          <section class="field full quantities" id="postcodeField" aria-labelledby="deliveryHeading">
+            <h2 id="deliveryHeading">6. Delivery destination</h2>
+            <p>Tell us roughly where the bags will go. No full address or registration needed for an indicative quotation.</p>
+            <label for="country">Delivery country</label><select class="control" id="country"><option value="MY">Malaysia</option><option value="SG">Singapore</option></select>
+            <div id="myDestination" style="margin-top:16px"><label for="areaName">Area / town name</label><input class="control" id="areaName" maxlength="100" autocomplete="address-level2" placeholder="e.g. Seri Kembangan">
+            <label for="stateName" style="margin-top:12px">State / federal territory</label><select class="control" id="stateName" autocomplete="address-level1"><option value="">Select state / federal territory</option><option>Johor</option><option>Kedah</option><option>Kelantan</option><option>Kuala Lumpur</option><option>Labuan</option><option>Melaka</option><option>Negeri Sembilan</option><option>Pahang</option><option>Penang</option><option>Perak</option><option>Perlis</option><option>Putrajaya</option><option>Sabah</option><option>Sarawak</option><option>Selangor</option><option>Terengganu</option></select></div>
+            <div id="postcodeEntry" style="margin-top:16px"><label for="postcode" id="postcodeLabel">Postcode (optional)</label><div class="postal-inline"><span id="singaporePrefix" hidden>Singapore</span><input class="control" id="postcode" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" placeholder="5-digit postcode" aria-describedby="postcodeHelp"></div><p class="help" id="postcodeHelp">Add it if you know it. It helps MPak check delivery charges.</p></div>
+            <label class="defer-location"><input type="checkbox" id="laterDestination"> I’ll provide the delivery location later</label>
+            <p class="help">Indicative bag price excludes delivery. MPak will confirm delivery charges once the destination is complete.</p>
+            <p id="deliveryError" class="qty-error" role="alert"></p><p id="deliveryStatus" class="qty-status" aria-live="polite"></p>
+            <details class="profile-demo"><summary>Preview saved-profile auto-fill (demo)</summary><p class="help">For testing only. This does not sign you in or access a customer account. Loads a sample destination for the selected country; you can edit it.</p><button type="button" class="qty-button secondary" id="loadProfile">Load sample saved destination</button></details>
+          </section>
+          <div class="field full"><label>Quotation purpose</label><div class="radio-row"><label><input type="radio" name="purpose" value="One-off order" checked>One-off order</label><label><input type="radio" name="purpose" value="Repeat supply">Repeat supply</label></div></div>
+        </div>
+      </form>
+      <aside class="summary" aria-live="polite"><h2>Your selected bag</h2><div class="selected-product"><img id="selectedPhoto" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="Selected Bag 1"><div><strong id="selectedName">Bag 1</strong><small id="selectedMaterial">White Kraft 100 gsm</small></div></div><div class="specs" id="specs"></div><div class="draft-restored" id="draftRestored">↺ Welcome back — your bag, sizing, quantities and delivery details were restored. Review the summary, then request your quotation.</div><p class="qty-error" id="apiError" role="alert"></p><button class="quote" type="button" id="quoteBtn">QuoteNow →</button><p class="note">No payment required. Final price is subject to artwork review and delivery details.</p><div class="success" id="success">✓ Specification and four quantity tiers are ready for the quotation engine. Prototype only — no price has been calculated or request sent.</div></aside>
+    </div>
+  </main>
+  <script src="/js/quotation-bag-images.js"></script>
+  <script src="/js/quotation-api.js"></script>
+  <script src="/js/quotation.js"></script>
   <script src="/scripts/auth.js"></script>
 </body>
 </html>

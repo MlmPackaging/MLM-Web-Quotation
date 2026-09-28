@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const pgPool = require("./db");
+const quotationRoutes = require("./router/quotationAPI");
 
 require("dotenv").config();
 
@@ -13,6 +14,7 @@ const scriptsDirectory = path.join(__dirname, "scripts");
 app.use(express.json());
 app.use(express.static(publicDirectory));
 app.use("/scripts", express.static(scriptsDirectory));
+app.use("/api/quotation", quotationRoutes);
 
 function publicUser(user) {
   return {
