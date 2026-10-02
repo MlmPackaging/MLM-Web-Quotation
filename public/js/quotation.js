@@ -165,7 +165,7 @@ $('postcode').addEventListener('input',e=>{e.target.value=e.target.value.replace
 ['areaName','stateName'].forEach(id=>$(id).addEventListener('input',()=>{$('deliveryError').textContent='';$('deliveryStatus').textContent='';update()}));
 $('laterDestination').addEventListener('change',refreshDelivery);
 $('loadProfile').onclick=()=>{$('laterDestination').checked=false;const sg=$('country').value==='SG';$('areaName').value=sg?'':'Seri Kembangan';$('stateName').value=sg?'':'Selangor';$('postcode').value=sg?'238801':'43300';refreshDelivery();$('deliveryStatus').textContent='Sample saved destination loaded. Please check or edit it for this inquiry. No account connected.'};
-$('quoteBtn').onclick=()=>{if(chosenQuantities.length!==4){qtyError(activeSet===4?'Please review and confirm your four quantities.':'Please enter your desired quantity and choose a quantity set.');$('quantitySection').scrollIntoView({behavior:'smooth',block:'center'});(activeSet===4?$('tier1'):$('desiredQty')).focus({preventScroll:true});return}const issue=deliveryValidation();if(issue){$('deliveryError').textContent=issue;$('postcodeField').scrollIntoView({behavior:'smooth',block:'center'});return}if(!(window.CustomerAuth&&window.CustomerAuth.isLoggedIn())){saveQuoteDraft();if(window.CustomerAuth){window.CustomerAuth.requireLogin('/quotation.html')}else{window.location.href='/customerlogin.html?returnTo='+encodeURIComponent('/quotation.html')}return}submitQuotation()};
+$('quoteBtn').onclick=()=>{if(chosenQuantities.length!==4){qtyError(activeSet===4?'Please review and confirm your four quantities.':'Please enter your desired quantity and choose a quantity set.');$('quantitySection').scrollIntoView({behavior:'smooth',block:'center'});(activeSet===4?$('tier1'):$('desiredQty')).focus({preventScroll:true});return}const issue=deliveryValidation();if(issue){$('deliveryError').textContent=issue;$('postcodeField').scrollIntoView({behavior:'smooth',block:'center'});return}if(!(window.CustomerAuth&&window.CustomerAuth.isLoggedIn())){saveQuoteDraft();if(window.CustomerAuth){window.CustomerAuth.requireLogin('/html/quotation.html')}else{window.location.href='/customerlogin.html?returnTo='+encodeURIComponent('/html/quotation.html')}return}submitQuotation()};
 $('applyMaterial').onclick=()=>{const m=heavyMaterial(selected<=8);if(m){$('material').value=m;update()}};
 let detailsPinned=false;
 function showVolumeDetails(show){$('volumePopup').hidden=!show;$('volumeDetails').setAttribute('aria-expanded',String(show));}
@@ -247,8 +247,8 @@ function getCustomerSession(){
 }
 function goLogin(){
   saveQuoteDraft();
-  if(window.CustomerAuth)window.CustomerAuth.requireLogin('/quotation.html');
-  else window.location.href='/customerlogin.html?returnTo='+encodeURIComponent('/quotation.html');
+  if(window.CustomerAuth)window.CustomerAuth.requireLogin('/html/quotation.html');
+  else window.location.href='/customerlogin.html?returnTo='+encodeURIComponent('/html/quotation.html');
 }
 const selectedId=id=>Number(($(id).selectedOptions[0]||{dataset:{}}).dataset.id);
 function buildPayload(){

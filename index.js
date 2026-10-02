@@ -2,7 +2,9 @@ const express = require("express");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const pgPool = require("./db");
+const { createAdminToken } = require("./authToken");
 const quotationRoutes = require("./router/quotationAPI");
+const adminQuotationRoutes = require("./router/adminquotationAPI");
 
 require("dotenv").config();
 
@@ -15,6 +17,7 @@ app.use(express.json());
 app.use(express.static(publicDirectory));
 app.use("/scripts", express.static(scriptsDirectory));
 app.use("/api/quotation", quotationRoutes);
+app.use("/api/admin/quotation", adminQuotationRoutes);
 
 function publicUser(user) {
   return {
@@ -135,7 +138,7 @@ app.post("/api/customer/register", async (req, res) => {
     return res.status(201).json({
       success: true,
       customer: publicCustomer(updated.rows[0]),
-      redirect: "/quotation.html",
+      redirect: "/html/quotation.html",
     });
   } catch (error) {
     console.error("[customer/register] Database error:", error.message);
@@ -187,7 +190,7 @@ app.post("/api/customer/login", async (req, res) => {
     return res.json({
       success: true,
       customer: publicCustomer(customer),
-      redirect: "/quotation.html",
+      redirect: "/html/quotation.html",
     });
   } catch (error) {
     console.error("[customer/login] Database error:", error.message);
@@ -341,7 +344,8 @@ app.post("/api/login", async (req, res) => {
     return res.json({
       success: true,
       user: publicUser(user),
-      redirect: "/dashboard.html",
+      auth_token: createAdminToken(user),
+      redirect: "/html/admin-quotation.html",
     });
   } catch (error) {
     console.error("[login] Database error:", error.message);

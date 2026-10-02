@@ -765,7 +765,7 @@
                     localStorage.setItem('customer', JSON.stringify(data.customer));
                     sessionStorage.removeItem('customer');
                     setTimeout(() => {
-                        window.location.href = data.redirect || '/quotation.html';
+                        window.location.href = data.redirect || '/html/quotation.html';
                     }, 1400);
                 } else {
                     shakeForm();

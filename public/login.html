@@ -822,7 +822,7 @@
                     showBanner('success', 'Login successful! Redirecting to your quotation page…');
                     label.textContent = 'Done!';
                     spinner.style.display = 'none';
-                    const userJson = JSON.stringify(data.user);
+                    const userJson = JSON.stringify(Object.assign({}, data.user, { auth_token: data.auth_token }));
                     const remember = document.getElementById('rememberMe').checked;
                     if (remember) {
                         localStorage.setItem("user", userJson);
@@ -831,7 +831,7 @@
                         localStorage.removeItem("user");
                     }
                     setTimeout(() => {
-                        window.location.href = consumeLoginReturnTarget() || data.redirect || '/dashboard.html';
+                        window.location.href = consumeLoginReturnTarget() || data.redirect || '/html/admin-quotation.html';
                     }, 1500);
                 } else {
 
@@ -890,7 +890,7 @@
                 const data = await res.json();
 
                 if (res.ok && data.valid) {
-                    window.location.href = consumeLoginReturnTarget() || "/dashboard.html";
+                    window.location.href = consumeLoginReturnTarget() || "/html/admin-quotation.html";
                 } else {
                     localStorage.removeItem("user");
                     sessionStorage.removeItem("user");

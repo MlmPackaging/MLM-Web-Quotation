@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak Admin — Quotations</title>
+  <link rel="stylesheet" href="/css/admin-quotation.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak <span>Admin</span><small>Quotations</small></div>
+    <div class="topbar-right"><span id="adminName"></span><button class="ghost" id="logoutBtn" type="button">Log out</button></div>
+  </header>
+
+  <main>
+    <h1>Customer quotations</h1>
+    <p class="sub" id="pageMessage" role="alert" hidden></p>
+    <p class="sub">Check what customers submitted, correct any detail, and update the status. Click a row to open it.</p>
+
+    <div class="stats" id="stats"></div>
+
+    <section class="panel">
+      <div class="filters">
+        <input class="control" id="search" type="search" placeholder="Search quotation no, company, contact or email">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Quotation</th><th>Customer</th><th>Bag (H×W×G mm)</th><th>Quantities</th><th>Delivery</th><th>Status</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="pager"><span id="pageInfo"></span><span><button class="btn" id="prev" type="button">Previous</button> <button class="btn" id="next" type="button">Next</button></span></div>
+    </section>
+  </main>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="drawer" id="drawer" hidden aria-label="Quotation editor"></aside>
+
+  <script src="/js/admin-quotation-api.js"></script>
+  <script src="/js/admin-quotation.js"></script>
+</body>
+</html>

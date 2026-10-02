@@ -835,7 +835,7 @@
                 const data = await res.json();
 
                 if (res.ok && data.valid) {
-                    window.location.href = consumeLoginReturnTarget() || "/quotation.html";
+                    window.location.href = consumeLoginReturnTarget() || "/html/quotation.html";
                 } else {
                     localStorage.removeItem("customer");
                     sessionStorage.removeItem("customer");
