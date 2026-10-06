@@ -35,6 +35,7 @@ window.AdminQuotationAPI = (function () {
     list: (params) => request(BASE + '/list?' + new URLSearchParams(params)),
     get: (id) => request(BASE + '/' + id),
     save: (id, payload) => request(BASE + '/' + id, json('PUT', payload)),
+    decide: (id, status) => request(BASE + '/' + id + '/decision', json('POST', { status })),
     remove: (id) => request(BASE + '/' + id, { method: 'DELETE' })
   };
 })();

@@ -16,6 +16,27 @@ const isInt = Number.isInteger;
 const text = (v) => String(v ?? "").trim();
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 
+// 8000 -> "8k", 1500 -> "1.5k"
+const kfmt = (n) => (Number(n) >= 1000 ? `${+(Number(n) / 1000).toFixed(1)}k` : String(n));
+
+// One-line summary of a quotation, e.g.
+// "Godiva (M)/250 x 310 x 200mm/180gsm White Kraft/<printing>/<handle>/8k/10k/15k"
+function buildDescription({ company, country, h, w, g, paperName, gsm, printingName, handleName, quantities }) {
+  const who = company ? `${company} (${country === "SG" ? "S" : "M"})` : "";
+  const size = h && w && g ? `${h} x ${w} x ${g}mm` : "";
+  const paper = paperName ? (gsm && !/gsm/i.test(paperName) ? `${gsm}gsm ${paperName}` : paperName) : "";
+  const tiers = (quantities || []).map(kfmt).join("/");
+  return [who, size, paper, printingName, handleName, tiers].filter(Boolean).join("/");
+}
+
+// Explains a rejected status value (database CHECK constraint / enum) instead of a vague error.
+function statusDbError(res, e, status) {
+  if (e && (e.code === "23514" || e.code === "22P02")) {
+    return fail(res, 400, `The database does not accept the status "${status}" yet. Run quotation_status_update.sql once, then try again.`);
+  }
+  return null;
+}
+
 // Validate the signed login token and recheck the active staff account.
 async function requireAdmin(req, res, next) {
   const authorization = req.get("authorization") || "";
@@ -110,18 +131,31 @@ router.get("/list", async (req, res) => {
               to_jsonb(q)->>'created_at' AS created_at,
               c.company_name, c.contact_person, c.email,
               i.height_mm, i.width_mm, i.gusset_mm,
+              pm.paper_name, pm.gsm, pr.printing_name, hm.handle_name,
               (SELECT array_agg(qq.quantity ORDER BY qq.quantity)
                  FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS quantities,
               COUNT(*) OVER()::int AS total
        FROM quotation q
        JOIN customer c ON c.customer_id = q.customer_id
        LEFT JOIN quotation_item i ON i.quotation_id = q.quotation_id
+       LEFT JOIN paper_master pm ON pm.paper_id = i.paper_id
+       LEFT JOIN printing_master pr ON pr.printing_id = i.printing_id
+       LEFT JOIN handle_master hm ON hm.handle_id = i.handle_id
        ${where.length ? "WHERE " + where.join(" AND ") : ""}
        ORDER BY q.quotation_id DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params,
     );
-    res.json({ success: true, page, limit, total: r.rows[0]?.total || 0, rows: r.rows });
+    const rows = r.rows.map((x) => ({
+      ...x,
+      description: buildDescription({
+        company: x.company_name, country: x.delivery_country,
+        h: x.height_mm, w: x.width_mm, g: x.gusset_mm,
+        paperName: x.paper_name, gsm: x.gsm, printingName: x.printing_name,
+        handleName: x.handle_name, quantities: x.quantities,
+      }),
+    }));
+    res.json({ success: true, page, limit, total: r.rows[0]?.total || 0, rows });
   } catch (e) {
     console.error("[admin/quotation/list]", e.message);
     fail(res, 500, "Unable to load quotations.");
@@ -170,7 +204,7 @@ function runChecks(q, customer, item, quantities, opts) {
 
 async function loadOptions() {
   const [p, pr, h] = await Promise.all([
-    pgPool.query(`SELECT paper_id AS id, paper_code AS code, paper_name AS name, active FROM paper_master ORDER BY paper_code`),
+    pgPool.query(`SELECT paper_id AS id, paper_code AS code, paper_name AS name, gsm, active FROM paper_master ORDER BY paper_code`),
     pgPool.query(`SELECT printing_id AS id, printing_code AS code, printing_name AS name, active FROM printing_master ORDER BY printing_code`),
     pgPool.query(`SELECT handle_id AS id, handle_code AS code, handle_name AS name, active FROM handle_master ORDER BY handle_code`),
   ]);
@@ -216,6 +250,17 @@ router.get("/:id", requireNumericId, async (req, res) => {
       options: opts,
       statuses: STATUSES.includes(q.quotation_status) ? STATUSES : [q.quotation_status, ...STATUSES],
       checks: runChecks(q, customer, item, quantities, opts),
+      description: (() => {
+        const paper = opts.papers.find((x) => x.id === (item && item.paper_id));
+        const printing = opts.printing.find((x) => x.id === (item && item.printing_id));
+        const handle = opts.handles.find((x) => x.id === (item && item.handle_id));
+        return buildDescription({
+          company: customer && customer.company_name, country: q.delivery_country,
+          h: item && item.height_mm, w: item && item.width_mm, g: item && item.gusset_mm,
+          paperName: paper && paper.name, gsm: paper && paper.gsm,
+          printingName: printing && printing.name, handleName: handle && handle.name, quantities,
+        });
+      })(),
     });
   } catch (e) {
     console.error("[admin/quotation/get]", e.message);
@@ -321,9 +366,33 @@ router.put("/:id", requireNumericId, async (req, res) => {
   } catch (e) {
     if (client) await client.query("ROLLBACK").catch(() => {});
     console.error("[admin/quotation/update]", e.message);
+    if (statusDbError(res, e, v.status)) return;
     fail(res, 500, "Unable to save changes. Nothing was changed.");
   } finally {
     if (client) client.release();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /:id/decision  { status }  Accept / reject / cancel (or reopen) a quotation.
+// Changes only the status, so a decision is never blocked by other fields.
+// ---------------------------------------------------------------------------
+router.post("/:id/decision", requireNumericId, async (req, res) => {
+  const status = text(req.body && req.body.status).toUpperCase();
+  if (!STATUSES.includes(status)) return fail(res, 400, "Please choose a valid status.");
+  try {
+    const withUpdated = await hasColumn("quotation", "updated_at");
+    const r = await pgPool.query(
+      `UPDATE quotation SET quotation_status = $1${withUpdated ? ", updated_at = NOW()" : ""}
+       WHERE quotation_id = $2 RETURNING quotation_status`,
+      [status, Number(req.params.id)],
+    );
+    if (!r.rows.length) return fail(res, 404, "Quotation not found.");
+    res.json({ success: true, status: r.rows[0].quotation_status });
+  } catch (e) {
+    console.error("[admin/quotation/decision]", e.message);
+    if (statusDbError(res, e, status)) return;
+    fail(res, 500, "Unable to save the decision.");
   }
 });
 

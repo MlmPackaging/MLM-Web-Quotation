@@ -30,6 +30,16 @@ h1 { font-size: 1.8rem; letter-spacing: -.03em; margin: 0 0 4px }
 .control { border: 1.5px solid #cbd5ce; border-radius: 11px; padding: 10px 12px; background: #fff; color: var(--ink); outline: none; width: 100% }
 .control:focus { border-color: var(--green-dark); box-shadow: 0 0 0 3px rgba(113, 224, 0, .14) }
 .filters .control { max-width: 360px }
+.filters { align-items: center; flex-wrap: wrap }
+.toggle { display: flex; align-items: center; gap: 8px; margin: 0 0 0 auto; font-size: .85rem; font-weight: 650; cursor: pointer }
+.toggle input { width: 17px; height: 17px; accent-color: #327800 }
+.col-desc { min-width: 340px; max-width: 460px }
+td.col-desc { font-size: .82rem; color: #3a4a42; overflow-wrap: anywhere }
+#quoteTable.hide-desc .col-desc { display: none }
+.desc-box { background: #f6f8f5; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: .85rem; margin: 0 0 14px; overflow-wrap: anywhere }
+.decision { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.decision .now { margin-right: auto; font-size: .85rem; color: var(--muted) }
+.btn.accept { background: #235600; color: #fff }
 
 .table-wrap { overflow-x: auto }
 table { width: 100%; border-collapse: collapse; font-size: .88rem }
@@ -81,5 +91,6 @@ label { display: block; font-weight: 700; font-size: .8rem; margin-bottom: 5px }
   .grid.four { grid-template-columns: repeat(2, 1fr) }
   .filters { flex-direction: column }
   .filters .control { max-width: none }
+  .toggle { margin-left: 0 }
   .brand small { display: none }
 }

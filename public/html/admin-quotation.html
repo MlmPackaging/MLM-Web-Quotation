@@ -22,10 +22,11 @@
     <section class="panel">
       <div class="filters">
         <input class="control" id="search" type="search" placeholder="Search quotation no, company, contact or email">
+        <label class="toggle"><input type="checkbox" id="toggleDesc" checked> Show description column</label>
       </div>
       <div class="table-wrap">
-        <table>
-          <thead><tr><th>Quotation</th><th>Customer</th><th>Bag (H×W×G mm)</th><th>Quantities</th><th>Delivery</th><th>Status</th></tr></thead>
+        <table id="quoteTable">
+          <thead><tr><th>Quotation</th><th>Customer</th><th>Bag (H×W×G mm)</th><th>Quantities</th><th>Delivery</th><th>Status</th><th class="col-desc">Description</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>

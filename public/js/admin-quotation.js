@@ -50,7 +50,8 @@
         <td>${(x.quantities || []).map((n) => Number(n).toLocaleString()).join(', ') || '<small>None</small>'}</td>
         <td>${esc(x.delivery_country)}<small>${esc(x.delivery_state || '')}</small></td>
         <td><span class="pill ${esc(x.quotation_status)}">${esc(label(x.quotation_status))}</span></td>
-      </tr>`).join('') : '<tr><td colspan="6" class="empty">No quotations match this filter.</td></tr>';
+        <td class="col-desc">${esc(x.description || '')}</td>
+      </tr>`).join('') : '<tr><td colspan="7" class="empty">No quotations match this filter.</td></tr>';
     const pages = Math.max(1, Math.ceil(state.total / state.limit));
     $('pageInfo').textContent = `${state.total} quotation${state.total === 1 ? '' : 's'} · page ${state.page} of ${pages}`;
     $('prev').disabled = state.page <= 1;
@@ -86,6 +87,20 @@
           <small>${esc(c.company_name || '')} · ${esc(c.email || '')}</small></div>
         <button class="close" id="closeBtn" type="button" aria-label="Close">×</button>
       </div>
+
+      <p class="desc-box">${esc(d.description || '')}</p>
+
+      <fieldset><legend>Decision</legend>
+        <div class="decision">
+          <span class="now">Current: <span class="pill ${esc(q.quotation_status)}">${esc(label(q.quotation_status))}</span></span>
+          ${q.quotation_status === 'ACCEPTED' || q.quotation_status === 'REJECTED' || q.quotation_status === 'CANCELLED'
+            ? '<button class="btn" type="button" data-decide="IN_REVIEW">Reopen for review</button>'
+            : `<button class="btn accept" type="button" data-decide="ACCEPTED">Accept</button>
+               <button class="btn danger" type="button" data-decide="REJECTED">Reject</button>
+               <button class="btn danger" type="button" data-decide="CANCELLED">Cancel</button>`}
+        </div>
+        <p class="msg" id="decisionMsg" role="alert"></p>
+      </fieldset>
 
       <fieldset><legend>Data check</legend>
         ${d.checks.map((k) => `<div class="check ${k.level}">${esc(k.text)}</div>`).join('')}
@@ -146,6 +161,14 @@
     calc();
 
     $('closeBtn').onclick = $('cancelBtn').onclick = closeDrawer;
+    document.querySelectorAll('[data-decide]').forEach((b) => {
+      b.onclick = async () => {
+        const status = b.dataset.decide;
+        if (!confirm(`Change this quotation to ${label(status)}?`)) return;
+        try { await API.decide(id, status); await refresh(); await openEditor(id); }
+        catch (e) { handleError(e, $('decisionMsg')); }
+      };
+    });
     $('editForm').onsubmit = async (ev) => {
       ev.preventDefault();
       const msg = $('msg');
@@ -189,6 +212,20 @@
     clearTimeout(timer);
     timer = setTimeout(() => { state.q = e.target.value.trim(); state.page = 1; loadList().catch(handleError); }, 300);
   });
+  // Show / hide the Description column (remembered on this browser)
+  const descKey = 'adminQuotationShowDescription';
+  const applyDesc = (show) => {
+    $('quoteTable').classList.toggle('hide-desc', !show);
+    $('toggleDesc').checked = show;
+  };
+  let showDesc = true;
+  try { showDesc = localStorage.getItem(descKey) !== '0'; } catch (e) {}
+  applyDesc(showDesc);
+  $('toggleDesc').addEventListener('change', (e) => {
+    applyDesc(e.target.checked);
+    try { localStorage.setItem(descKey, e.target.checked ? '1' : '0'); } catch (err) {}
+  });
+
   $('scrim').onclick = closeDrawer;
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
   $('logoutBtn').onclick = async () => {
