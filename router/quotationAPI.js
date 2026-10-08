@@ -222,4 +222,81 @@ router.post("/", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// "My quotations": a customer sees ONLY their own quotations.
+// Identified the same way as POST / (customer_id + email of an Active account).
+// ---------------------------------------------------------------------------
+const kfmt = (n) => (Number(n) >= 1000 ? `${+(Number(n) / 1000).toFixed(1)}k` : String(n));
+
+function describe(x) {
+  const size = x.height_mm ? `${x.height_mm} x ${x.width_mm} x ${x.gusset_mm}mm` : "";
+  const paper = x.paper_name ? (x.gsm && !/gsm/i.test(x.paper_name) ? `${x.gsm}gsm ${x.paper_name}` : x.paper_name) : "";
+  const tiers = (x.quantities || []).map(kfmt).join("/");
+  return [size, paper, x.printing_name, x.handle_name, tiers].filter(Boolean).join(" / ");
+}
+
+async function activeCustomerId(body = {}) {
+  const id = Number(body.customer_id);
+  const email = text(body.email).toLowerCase();
+  if (!isInt(id) || !email) return null;
+  const r = await pgPool.query(
+    `SELECT customer_id FROM customer
+     WHERE customer_id = $1 AND LOWER(email) = $2 AND UPPER(account_status) = 'ACTIVE' LIMIT 1`,
+    [id, email],
+  );
+  return r.rows.length ? id : null;
+}
+
+const MINE_SELECT = `
+  SELECT q.quotation_id, q.quotation_no, q.quotation_status, q.quotation_purpose,
+         q.delivery_country, q.delivery_state, q.delivery_area, q.postcode,
+         to_jsonb(q)->>'created_at' AS created_at,
+         to_jsonb(q)->>'updated_at' AS updated_at,
+         i.height_mm, i.width_mm, i.gusset_mm, to_jsonb(i)->>'gallery_bag_no' AS gallery_bag_no,
+         pm.paper_name, pm.gsm, pr.printing_name, hm.handle_name,
+         (SELECT array_agg(qq.quantity ORDER BY qq.quantity)
+            FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS quantities
+  FROM quotation q
+  LEFT JOIN quotation_item i ON i.quotation_id = q.quotation_id
+  LEFT JOIN paper_master pm ON pm.paper_id = i.paper_id
+  LEFT JOIN printing_master pr ON pr.printing_id = i.printing_id
+  LEFT JOIN handle_master hm ON hm.handle_id = i.handle_id`;
+
+// POST /api/quotation/mine  { customer_id, email } -> that customer's quotations (newest first)
+router.post("/mine", async (req, res) => {
+  try {
+    const customerId = await activeCustomerId(req.body);
+    if (!customerId) return fail(res, 401, "Please log in to see your quotations.");
+    const r = await pgPool.query(
+      `${MINE_SELECT} WHERE q.customer_id = $1 ORDER BY q.quotation_id DESC LIMIT 200`,
+      [customerId],
+    );
+    res.json({ success: true, rows: r.rows.map((x) => ({ ...x, description: describe(x) })) });
+  } catch (error) {
+    console.error("[quotation/mine] Database error:", error.message);
+    fail(res, 500, "Unable to load your quotations.");
+  }
+});
+
+// POST /api/quotation/mine/:id  { customer_id, email } -> one quotation, only if it is theirs
+router.post("/mine/:id", async (req, res) => {
+  try {
+    const customerId = await activeCustomerId(req.body);
+    if (!customerId) return fail(res, 401, "Please log in to see your quotations.");
+    const quotationId = Number(req.params.id);
+    if (!/^\d+$/.test(req.params.id) || !Number.isSafeInteger(quotationId) || quotationId < 1) {
+      return fail(res, 400, "Invalid quotation ID.");
+    }
+    const r = await pgPool.query(
+      `${MINE_SELECT} WHERE q.quotation_id = $1 AND q.customer_id = $2`,
+      [quotationId, customerId],
+    );
+    if (!r.rows.length) return fail(res, 404, "Quotation not found.");
+    res.json({ success: true, quotation: { ...r.rows[0], description: describe(r.rows[0]) } });
+  } catch (error) {
+    console.error("[quotation/mine/id] Database error:", error.message);
+    fail(res, 500, "Unable to load this quotation.");
+  }
+});
+
 module.exports = router;

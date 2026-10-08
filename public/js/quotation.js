@@ -272,7 +272,7 @@ async function submitQuotation(){
   const btn=$('quoteBtn');btn.disabled=true;$('apiError').textContent='';
   try{
     const r=await QuotationAPI.submit({...buildPayload(),...session});
-    $('success').textContent='✓ Quotation '+r.quotation_no+' submitted. MPak will review your specification and send prices for all four quantities.';
+    $('success').textContent='✓ Quotation '+r.quotation_no+' submitted. MPak will review your specification and send prices for all four quantities.';const lk=document.createElement('a');lk.href='/html/my-quotations.html';lk.textContent=' View my quotations →';lk.style.fontWeight='700';$('success').appendChild(lk);
     $('success').classList.add('show');$('success').scrollIntoView({behavior:'smooth',block:'nearest'});
   }catch(e){
     if(e.status===401){goLogin();return}

@@ -18,6 +18,18 @@ window.QuotationAPI = (function () {
     // -> { papers, printing, handles }
     loadOptions: () => request(BASE + '/options'),
     // -> { quotation_id, quotation_no, quantities }
+    // -> { rows } only this customer's quotations. session = { customer_id, email }
+    mine: (session) => request(BASE + '/mine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session)
+    }),
+    // -> { quotation }
+    mineDetail: (id, session) => request(BASE + '/mine/' + id, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session)
+    }),
     submit: (payload) => request(BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

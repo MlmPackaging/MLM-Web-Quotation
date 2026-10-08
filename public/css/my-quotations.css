@@ -1,0 +1,43 @@
+/* My quotations page. Uses the colour variables and topbar from quotation.css */
+.mq { max-width: 1160px; margin: auto; padding: 26px 20px 60px }
+.mq-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 18px }
+.mq h1 { font-size: 1.8rem; letter-spacing: -.03em; margin: 0 0 4px }
+.mq-sub { color: var(--muted); margin: 0 }
+.mq-new { background: #235600; color: #fff; text-decoration: none; font-weight: 700; padding: 11px 18px; border-radius: 12px }
+.mq-new:focus-visible { outline: 3px solid var(--green); outline-offset: 2px }
+.mq-error { color: var(--warn); font-weight: 650; min-height: 1.2em }
+
+.mq-panel { background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); padding: 20px }
+.mq-tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 14px }
+.mq-tools .control { max-width: 320px }
+.mq-chips { display: flex; gap: 8px; flex-wrap: wrap }
+.mq-chip { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: .82rem; cursor: pointer; color: var(--ink) }
+.mq-chip.active { border-color: var(--green-dark); background: #f0fbe8 }
+.mq-chip:focus-visible, .mq-view:focus-visible { outline: 3px solid var(--green); outline-offset: 2px }
+
+.mq-table-wrap { overflow-x: auto }
+.mq-table { width: 100%; border-collapse: collapse; font-size: .88rem }
+.mq-table th { text-align: left; color: var(--muted); font-size: .78rem; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap }
+.mq-table td { padding: 12px 10px; border-bottom: 1px solid #edf0ee; vertical-align: top }
+.mq-table small { display: block; color: var(--muted) }
+.mq-bag { max-width: 340px; overflow-wrap: anywhere }
+.mq-empty { text-align: center; color: var(--muted); padding: 36px 0 }
+.mq-view { border: 1px solid #327800; border-radius: 10px; background: #fff; color: #235600; padding: 7px 12px; font-weight: 700; cursor: pointer }
+
+.mq-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: #edf3ef; color: #3a4a42; white-space: nowrap }
+.mq-pill.SUBMITTED { background: #fff4e5; color: #70451a }
+.mq-pill.IN_REVIEW { background: #e6f0ff; color: #1b4a9c }
+.mq-pill.QUOTED, .mq-pill.ACCEPTED { background: #eaf8df; color: #285d00 }
+.mq-pill.REJECTED, .mq-pill.CANCELLED { background: #fdf0ef; color: var(--warn) }
+
+.mq-scrim { position: fixed; inset: 0; background: rgba(8, 35, 27, .45); z-index: 9 }
+.mq-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100%); background: #fff; z-index: 10; overflow-y: auto; box-shadow: var(--shadow); padding: 22px }
+.mq-drawer h2 { margin: 0 0 4px; font-size: 1.3rem }
+.mq-close { float: right; border: 0; background: none; font-size: 1.6rem; cursor: pointer; color: var(--muted); line-height: 1 }
+.mq-status-box { background: #f6f8f5; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 14px 0 }
+.mq-status-box p { margin: 6px 0 0; color: var(--muted); font-size: .88rem }
+.mq-dl { display: grid; grid-template-columns: 130px 1fr; gap: 8px 12px; margin: 0; font-size: .9rem }
+.mq-dl dt { color: var(--muted); font-weight: 650 }
+.mq-dl dd { margin: 0; overflow-wrap: anywhere }
+
+@media (max-width: 640px) { .mq-tools .control { max-width: none; width: 100% } .mq-dl { grid-template-columns: 1fr } }

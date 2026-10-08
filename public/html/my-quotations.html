@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak PTH_V5 — My quotations</title>
+  <link rel="stylesheet" href="/css/quotation.css">
+  <link rel="stylesheet" href="/css/my-quotations.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak<span>™</span> PTH_V5</div>
+    <nav class="page-nav" aria-label="Customer pages">
+      <a class="nav-link" href="/html/quotation.html">Make quotation</a>
+      <a class="nav-link active" href="/html/my-quotations.html" aria-current="page">My quotations</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="profile-menu" id="profileMenu">
+        <button type="button" class="profile-chip" id="profileChip" aria-haspopup="true" aria-expanded="false">
+          <span class="profile-avatar" id="profileAvatar">–</span>
+          <span class="profile-text"><strong id="profileName">Loading…</strong><small id="profileEmail"></small></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown" hidden>
+          <div class="profile-dropdown-header">
+            <strong id="dropdownName"></strong>
+            <small id="dropdownEmail"></small>
+            <small class="profile-dropdown-company" id="dropdownCompany"></small>
+          </div>
+          <button type="button" class="signin-btn" id="dropdownSignIn" hidden>Sign in</button>
+          <button type="button" class="register-link" id="dropdownRegister" hidden>Create free account</button>
+          <button type="button" class="logout-btn" id="logoutBtn" hidden>Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="mq">
+    <div class="mq-head">
+      <div><h1>My quotations</h1><p class="mq-sub">Every quotation you have requested, and where it stands with MPak.</p></div>
+      <a class="mq-new" href="/html/quotation.html">+ New quotation</a>
+    </div>
+
+    <p class="mq-error" id="mqError" role="alert"></p>
+
+    <section class="mq-panel">
+      <div class="mq-tools">
+        <div class="mq-chips" id="mqChips" role="group" aria-label="Filter by status"></div>
+        <input class="control" id="mqSearch" type="search" placeholder="Search quotation no or details">
+      </div>
+      <div class="mq-table-wrap">
+        <table class="mq-table">
+          <thead><tr><th>Quotation</th><th>Your bag</th><th>Quantities</th><th>Delivery</th><th>Status</th><th></th></tr></thead>
+          <tbody id="mqRows"><tr><td colspan="6" class="mq-empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="mq-scrim" id="mqScrim" hidden></div>
+  <aside class="mq-drawer" id="mqDrawer" hidden aria-label="Quotation details"></aside>
+
+  <script src="/js/quotation-api.js"></script>
+  <script src="/scripts/auth.js"></script>
+  <script src="/js/my-quotations.js"></script>
+</body>
+</html>
