@@ -9,6 +9,65 @@
 (function () {
   "use strict";
 
+  function readStoredUser() {
+    try {
+      const raw = localStorage.getItem("user") || sessionStorage.getItem("user");
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function clearStoredUser() {
+    try { localStorage.removeItem("user"); } catch (error) {}
+    try { sessionStorage.removeItem("user"); } catch (error) {}
+  }
+
+  let currentUser = readStoredUser();
+
+  async function refreshUser() {
+    const stored = readStoredUser();
+    if (!stored) {
+      currentUser = null;
+      return null;
+    }
+
+    try {
+      const response = await fetch("/api/check-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: stored.user_id || stored.id,
+          email: stored.user_email || stored.email,
+        }),
+      });
+      const result = await response.json().catch(function () { return {}; });
+      if (response.ok && result.valid) {
+        currentUser = result.user || stored;
+        return currentUser;
+      }
+      clearStoredUser();
+      currentUser = null;
+      return null;
+    } catch (error) {
+      currentUser = stored;
+      return currentUser;
+    }
+  }
+
+  window.getCurrentUser = function () {
+    return currentUser || readStoredUser();
+  };
+  window.UserAuth = {
+    getCurrentUser: window.getCurrentUser,
+    refresh: refreshUser,
+    logout: function () {
+      clearStoredUser();
+      currentUser = null;
+    },
+  };
+  void refreshUser();
+
   function readStoredCustomer() {
     try {
       const raw = localStorage.getItem("customer") || sessionStorage.getItem("customer");

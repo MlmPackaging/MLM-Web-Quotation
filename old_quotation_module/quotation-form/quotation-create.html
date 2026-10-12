@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quotation Calculator</title>
+  <link rel="icon" type="image/png" href="/images/MLM Logo.png">
+  <link rel="stylesheet" href="/quotation-form/quotation-form.css">
+  <style>
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(45, 55, 72, 0.95);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      min-width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 600;
+      pointer-events: auto;
+      animation: popDown 0.4s forwards;
+    }
+
+    .toast.error {
+      border-bottom: 4px solid #ef4444;
+    }
+
+    .toast.success {
+      border-bottom: 4px solid #10b981;
+    }
+
+    .toast.info {
+      border-bottom: 4px solid #2563eb;
+    }
+
+    @keyframes popDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeOutUp {
+      from {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body data-page="quotation-create">
+  <div class="quotation-shell">
+    <header class="quotation-topbar">
+      <div class="quotation-topbar__inner">
+        <div>
+          <p class="quotation-eyebrow">MLM Packaging Sdn Bhd</p>
+          <h1>Quotation Calculator</h1>
+          <p class="quotation-subtext">Calculate printing costs for custom packaging solutions</p>
+        </div>
+        <div class="quotation-topbar__actions">
+          <a class="button button-ghost" href="/dashboard/quotation-dashboard.html">User Dashboard</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="quotation-page" class="quotation-page">
+      <section class="quotation-card quotation-brand-card">
+        <div class="brand-row">
+            <img class="brand-logo" src="/images/MLM Logo.png" alt="MLM Packaging logo">
+          <div>
+            <h2>MLM PACKAGING Sdn Bhd</h2>
+            <p>Quotation System</p>
+          </div>
+        </div>
+        <div class="brand-meta">
+          <span>Live calculator preview</span>
+        </div>
+      </section>
+
+      <section class="quotation-card">
+        <div class="tab-strip">
+          <button type="button" class="tab-button is-active" data-tab-target="basic">Basic Specifications</button>
+          <button type="button" class="tab-button" data-tab-target="finishing">Finishing Options</button>
+        </div>
+
+        <form id="quotation-form" novalidate>
+          <div id="tab-basic" class="tab-panel is-active">
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Dimensions</h3>
+                <p>Enter the production size and order quantity.</p>
+              </div>
+              <div class="field-grid field-grid--4">
+                <label class="field">
+                  <span>Height (mm)</span>
+                  <input id="height" name="height" type="number" min="50" max="1000">
+                  <small>50mm - 1000mm</small>
+                </label>
+                <label class="field">
+                  <span>Width (mm)</span>
+                  <input id="width" name="width" type="number" min="50" max="1000">
+                  <small>50mm - 1000mm</small>
+                </label>
+                <label class="field">
+                  <span>Gusset (mm)</span>
+                  <input id="gusset" name="gusset" type="number" min="0" max="500">
+                  <small>0mm - 500mm</small>
+                </label>
+                <label class="field">
+                  <span>Quantity</span>
+                  <input id="quantity" name="quantity" type="number" min="100" max="1000000">
+                  <small>100 - 1,000,000 pcs</small>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Paper Bag Visualization</h3>
+                <p>Your converted 3D bag preview is embedded directly into this page.</p>
+              </div>
+              <div class="visual-grid">
+                <div class="visual-card">
+                  <div class="visual-card__top">
+                    <h4>3D Preview</h4>
+                    <div class="camera-buttons">
+                      <button id="btn-3d" type="button" class="button button-small button-ghost">3D</button>
+                      <button id="btn-top" type="button" class="button button-small button-ghost">Top</button>
+                      <button id="btn-front" type="button" class="button button-small button-ghost">Front</button>
+                      <button id="btn-side" type="button" class="button button-small button-ghost">Side</button>
+                    </div>
+                  </div>
+                  <div id="bag-container" class="bag-container"></div>
+                  <div class="visual-note">
+                    Drag to rotate. Scroll to zoom. The preview updates as dimensions and finishing change.
+                  </div>
+                </div>
+
+                <div class="visual-card">
+                  <div class="visual-card__top">
+                    <h4>Production Layouts</h4>
+                    <span id="layout-count-badge" class="badge">0 efficient layouts available</span>
+                  </div>
+                  <div id="layout-preview-list" class="layout-preview-list"></div>
+                  <div class="callout callout-info">
+                    <strong>Note:</strong> The system automatically selects the most cost-effective layout based on material usage and production efficiency.
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Material &amp; Printing</h3>
+                <p>Select the paper stock, printing mode, ink type, and pricing margin.</p>
+              </div>
+              <div class="material-grid">
+                <div class="stack">
+                  <label class="field">
+                    <span>Paper Type</span>
+                    <select id="paperName" name="paperName"></select>
+                  </label>
+
+                  <div id="paper-image-list" class="paper-card"></div>
+                </div>
+
+                <div class="stack">
+                  <label class="field">
+                    <span>Printing Option</span>
+                    <select id="printingOption" name="printingOption"></select>
+                  </label>
+
+                  <div class="field-grid field-grid--2">
+                    <label class="field">
+                      <span>Ink Type</span>
+                      <select id="inkType" name="inkType">
+                        <option value="normal">Normal Ink (RM60/kg)</option>
+                        <option value="metallic">Metallic Ink (RM150/kg)</option>
+                      </select>
+                    </label>
+
+                    <label class="field">
+                      <span>Margin Index</span>
+                      <select id="marginIndex" name="marginIndex"></select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div id="tab-finishing" class="tab-panel">
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Coating &amp; Lamination</h3>
+                <p>Protective surface treatments for gloss, matte, and durability.</p>
+              </div>
+              <div class="field-grid field-grid--2">
+                <label class="field">
+                  <span>Varnish</span>
+                  <select id="varnish" name="varnish">
+                    <option value="None">No Varnish</option>
+                    <option value="OPV">OPV Varnish</option>
+                    <option value="Waterbase">Waterbase Varnish</option>
+                  </select>
+                  <small>Adds protective coating</small>
+                </label>
+                <label class="field">
+                  <span>Lamination</span>
+                  <select id="lamination" name="lamination">
+                    <option value="None">No Lamination</option>
+                    <option value="Gloss">Gloss Lamination</option>
+                    <option value="Matt">Matt Lamination</option>
+                  </select>
+                  <small>Adds durability and finish</small>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Special Effects</h3>
+                <p>Configure foil stamping, embossing, texture effects, and add-on production costs.</p>
+              </div>
+
+              <div class="option-stack">
+                <article class="option-card" data-toggle-card="stamping">
+                  <label class="toggle-row">
+                    <input id="stamping" name="stamping" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Stamping (Hot Foil)</strong>
+                      <small>Foil stamping for metallic effects</small>
+                    </span>
+                  </label>
+                  <div id="stamping-options" class="option-details is-hidden">
+                    <label class="field">
+                      <span>Foil Type</span>
+                      <select id="foilType" name="foilType"></select>
+                    </label>
+                    <div class="field-grid field-grid--2">
+                      <label class="field">
+                        <span>Stamping Height (mm)</span>
+                        <input id="stampingHeight" name="stampingHeight" type="number" min="10" max="500">
+                      </label>
+                      <label class="field">
+                        <span>Stamping Width (mm)</span>
+                        <input id="stampingWidth" name="stampingWidth" type="number" min="10" max="500">
+                      </label>
+                    </div>
+                    <div id="stamping-area-note" class="callout callout-info"></div>
+                  </div>
+                </article>
+
+                <article class="option-card" data-toggle-card="embossing">
+                  <label class="toggle-row">
+                    <input id="embossing" name="embossing" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Embossing &amp; Debossing</strong>
+                      <small>Raised or depressed pattern effect</small>
+                    </span>
+                  </label>
+                  <div id="embossing-options" class="option-details is-hidden">
+                    <label class="field">
+                      <span>Embossing Type</span>
+                      <select id="embossingType" name="embossingType"></select>
+                    </label>
+                    <div class="field-grid field-grid--2">
+                      <label class="field">
+                        <span>Embossing Height (mm)</span>
+                        <input id="embossingHeight" name="embossingHeight" type="number" min="10" max="500">
+                      </label>
+                      <label class="field">
+                        <span>Embossing Width (mm)</span>
+                        <input id="embossingWidth" name="embossingWidth" type="number" min="10" max="500">
+                      </label>
+                    </div>
+                    <div id="embossing-area-note" class="callout callout-info"></div>
+                  </div>
+                </article>
+
+                <article class="option-card" data-toggle-card="textureEmbossing">
+                  <label class="toggle-row">
+                    <input id="textureEmbossing" name="textureEmbossing" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Texture Embossing</strong>
+                      <small>Textured pattern embossing</small>
+                    </span>
+                  </label>
+                  <div id="texture-options" class="option-details is-hidden">
+                    <label class="field">
+                      <span>Texture Type</span>
+                      <select id="textureType" name="textureType"></select>
+                    </label>
+                  </div>
+                </article>
+              </div>
+
+              <div class="field-grid field-grid--3">
+                <article class="option-card compact" data-toggle-card="spotUV">
+                  <label class="toggle-row">
+                    <input id="spotUV" name="spotUV" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Spot UV</strong>
+                      <small>Adds glossy finish to specific areas</small>
+                    </span>
+                  </label>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="dieCut">
+                  <label class="toggle-row">
+                    <input id="dieCut" name="dieCut" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Die Cut</strong>
+                      <small>Custom shape cutting</small>
+                    </span>
+                  </label>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="handles">
+                  <label class="toggle-row">
+                    <input id="handles" name="handles" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Handles</strong>
+                      <small>Price varies by handle type</small>
+                    </span>
+                  </label>
+                  <div id="handle-options" class="option-details is-hidden">
+                    <label class="field">
+                      <span>Handle Type</span>
+                      <select id="handleType" name="handleType"></select>
+                    </label>
+                    <div id="handle-helper" class="helper-copy"></div>
+                  </div>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="reinforcementBoard">
+                  <label class="toggle-row">
+                    <input id="reinforcementBoard" name="reinforcementBoard" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Reinforcement Board</strong>
+                      <small>Board cost depends on bag dimensions and selected grade</small>
+                    </span>
+                  </label>
+                  <div id="board-options" class="option-details is-hidden">
+                    <label class="field">
+                      <span>Board Grade</span>
+                      <select id="boardType" name="boardType"></select>
+                    </label>
+                    <div id="board-helper" class="helper-copy"></div>
+                  </div>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="convertingLabor">
+                  <label class="toggle-row">
+                    <input id="convertingLabor" name="convertingLabor" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Converting Labor</strong>
+                      <small>Rate calculated from bag volume and glue length</small>
+                    </span>
+                  </label>
+                  <div id="converting-helper" class="option-details is-hidden helper-copy"></div>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="packaging">
+                  <label class="toggle-row">
+                    <input id="packaging" name="packaging" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Packaging</strong>
+                      <small>Add cartons and packing materials</small>
+                    </span>
+                  </label>
+                </article>
+
+                <article class="option-card compact" data-toggle-card="mockUp">
+                  <label class="toggle-row">
+                    <input id="mockUp" name="mockUp" type="checkbox">
+                    <span class="toggle-copy">
+                      <strong>Mock Up</strong>
+                      <small>Include prototype cost</small>
+                    </span>
+                  </label>
+                </article>
+              </div>
+            </section>
+
+            <section class="panel-section">
+              <div class="section-title">
+                <h3>Moulding</h3>
+                <p>Specify whether a new or existing die cut mould is needed.</p>
+              </div>
+              <div class="field-grid field-grid--2">
+                <label class="field">
+                  <span>DC Moulding</span>
+                  <select id="dcMoulding" name="dcMoulding">
+                    <option value="None">No Moulding</option>
+                    <option value="New">New Mould (Additional Cost)</option>
+                    <option value="Old">Existing Mould (No Additional Cost)</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div class="action-row">
+            <button id="quotation-calculate" type="submit" class="button button-primary button-strong">Calculate Quotation</button>
+            <button id="quotation-reset" type="button" class="button button-secondary">Reset All</button>
+          </div>
+
+          <div id="quotation-error" class="error-banner is-hidden"></div>
+
+          <input id="foil" type="checkbox" hidden>
+          <input id="foilWidth" type="number" hidden>
+          <input id="foilHeight" type="number" hidden>
+          <input id="foilOffsetX" type="number" value="0" hidden>
+          <input id="foilOffsetY" type="number" value="0" hidden>
+        </form>
+      </section>
+
+      <section id="quotation-results" class="quotation-card is-hidden">
+        <div class="results-head">
+          <div>
+            <h2>Quotation Results</h2>
+            <p>Your detailed cost breakdown</p>
+          </div>
+        </div>
+
+        <div id="layout-selection-summary" class="result-panel"></div>
+
+        <div class="result-grid">
+          <div id="cost-summary" class="result-panel"></div>
+          <div id="result-specifications" class="result-panel"></div>
+          <div id="quick-actions" class="result-panel"></div>
+        </div>
+
+        <div id="cost-breakdown" class="result-panel"></div>
+        <div id="layout-comparisons" class="result-panel is-hidden"></div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <img class="footer-logo" src="/images/MLM Logo.png" alt="MLM Packaging logo">
+        <div>
+          <div class="footer-copy">
+            <span class="footer-label">Powered by</span>
+            <strong>MLM Packaging Sdn Bhd</strong>
+          </div>
+        </div>
+      </div>
+      <div class="footer-meta">
+        <span>support@mlmpackaging.com</span>
+        <span>&copy; <span id="footer-year"></span> MLM Packaging</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="paper-zoom-modal" class="modal is-hidden">
+    <div class="modal-card">
+      <div class="modal-card__head">
+        <h3 id="paper-zoom-title">Paper Preview</h3>
+        <button id="paper-zoom-close" type="button" class="icon-button" aria-label="Close paper preview">&times;</button>
+      </div>
+      <div class="modal-card__body">
+        <img id="paper-zoom-image" src="" alt="Paper preview">
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script defer src="/scripts/sidebar-behavior.js"></script>
+  <script src="/scripts/auth.js"></script>
+  <script src="/scripts/quotation-shell.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.159.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="/quotation-bag3d.js" defer></script>
+  <script type="module" src="/quotation-form/quotation-form.js"></script>
+</body>
+</html>

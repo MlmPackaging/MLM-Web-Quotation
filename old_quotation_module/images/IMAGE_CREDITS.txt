@@ -1,0 +1,21 @@
+Paper-bag photographs used by quotation-form.js:
+
+paper-art-bag.jpg
+  Pexels photo 7987867, colorful paper shopping bags.
+  https://www.pexels.com/search/colorful%20paper%20shopping%20bags%20with%20handles/
+  Used under the Pexels License: https://www.pexels.com/license/
+
+paper-kraft-bag.jpg
+  Unsplash, "A brown paper bag sitting on top of a table"
+  https://unsplash.com/photos/a-brown-paper-bag-sitting-on-top-of-a-table-iiuHDR8Om44
+  Used under the Unsplash License.
+
+paper-white-kraft-bag.jpg
+  Pexels photo 12024975, plain white paper shopping bags without logos.
+  https://www.pexels.com/search/white%20paper%20shopping%20bag%20product/
+  Used under the Pexels License: https://www.pexels.com/license/
+
+paper-sack-bag.jpg
+  Pexels photo 11348561, full kraft paper shopping bag.
+  https://www.pexels.com/search/kraft%20paper%20shopping%20bag/
+  Used under the Pexels License: https://www.pexels.com/license/
