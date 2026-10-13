@@ -1,0 +1,54 @@
+/* MPak shared shell: load this LAST on every customer and admin page.
+   Gives all pages the same header, navigation, profile layout, steps and summary tiles. */
+
+/* Header: three fixed columns, so the centre navigation never moves when the left or right content changes */
+.topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px }
+.topbar .brand { justify-self: start; white-space: nowrap }
+.topbar .page-nav { justify-self: center }
+.topbar .topbar-right { justify-self: end }
+.topbar .secure { display: none }
+.page-nav { display: flex; gap: 6px }
+.nav-link { color: #cdd9d4; text-decoration: none; font-weight: 700; font-size: .9rem; padding: 8px 16px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap }
+.nav-link:hover { background: rgba(255, 255, 255, .08); color: #fff }
+.nav-link.active { background: var(--green); color: var(--forest) }
+.nav-link:focus-visible { outline: 3px solid var(--green); outline-offset: 2px }
+@media (max-width: 720px) {
+  .topbar { grid-template-columns: minmax(0, 1fr) auto }
+  .topbar .page-nav { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: center }
+}
+
+/* Profile pages */
+.pf-wrap { max-width: 860px; margin: auto; padding: 26px 20px 60px }
+.pf-wrap h1 { font-size: 1.8rem; letter-spacing: -.03em; margin: 0 0 4px }
+.pf-sub { color: var(--muted); margin: 0 0 20px }
+.pf-card { background: var(--card, #fff); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); padding: 22px; margin-bottom: 18px }
+.pf-card h2 { font-size: 1.05rem; margin: 0 0 4px }
+.pf-card > p { color: var(--muted); font-size: .86rem; margin: 0 0 16px }
+.pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.pf-full { grid-column: 1 / -1 }
+.pf-field label { display: block; font-weight: 700; font-size: .82rem; margin-bottom: 6px }
+.pf-field .opt { color: var(--muted); font-weight: 500 }
+.pf-input { width: 100%; border: 1.5px solid #cbd5ce; border-radius: 11px; padding: 11px 12px; background: #fff; color: var(--ink); font: inherit; outline: none }
+.pf-input:focus { border-color: var(--green-dark); box-shadow: 0 0 0 3px rgba(113, 224, 0, .14) }
+.pf-input[readonly] { background: #f2f5f2; color: var(--muted); cursor: not-allowed }
+textarea.pf-input { min-height: 84px; resize: vertical }
+.pf-hint { color: var(--muted); font-size: .78rem; margin: 5px 0 0 }
+.pf-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
+.pf-save { border: 0; border-radius: 12px; background: #235600; color: #fff; font: inherit; font-weight: 700; padding: 12px 22px; cursor: pointer }
+.pf-save:disabled { opacity: .55; cursor: not-allowed }
+.pf-save:focus-visible { outline: 3px solid var(--green); outline-offset: 2px }
+.pf-msg { font-weight: 650; font-size: .9rem; min-height: 1.2em; color: var(--warn) }
+.pf-msg.good { color: #235600 }
+.pf-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; background: #eaf8df; color: #285d00 }
+@media (max-width: 640px) { .pf-grid { grid-template-columns: 1fr } }
+
+/* "How it works" steps and summary tiles (My quotations) */
+.mq-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; list-style: none; margin: 0 0 16px; padding: 0; counter-reset: s }
+.mq-steps li { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 12px 50px; position: relative; font-size: .85rem; color: var(--muted) }
+.mq-steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: var(--forest); font-weight: 800; display: grid; place-items: center; font-size: .82rem }
+.mq-steps b { display: block; color: var(--ink) }
+.mq-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px }
+.mq-tile { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px }
+.mq-tile b { display: block; font-size: 1.6rem; line-height: 1.1 }
+.mq-tile span { font-size: .8rem; color: var(--muted) }
+@media (max-width: 720px) { .mq-steps { grid-template-columns: 1fr } .mq-tiles { grid-template-columns: repeat(2, 1fr) } }

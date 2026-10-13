@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak PTH_V5 — My profile</title>
+  <link rel="stylesheet" href="/css/quotation.css">
+  <link rel="stylesheet" href="/css/my-quotations.css">
+  <link rel="stylesheet" href="/css/mpak-shell.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak<span>™</span> PTH_V5</div>
+    <nav class="page-nav" aria-label="Customer pages">
+      <a class="nav-link" href="/html/quotation.html">Make quotation</a>
+      <a class="nav-link" href="/html/my-quotations.html">My quotations</a>
+      <a class="nav-link active" href="/html/customer-profile.html" aria-current="page">My profile</a>
+    </nav>
+    <div class="topbar-right">
+      <div class="profile-menu" id="profileMenu">
+        <button type="button" class="profile-chip" id="profileChip" aria-haspopup="true" aria-expanded="false">
+          <span class="profile-avatar" id="profileAvatar">–</span>
+          <span class="profile-text"><strong id="profileName">Loading…</strong><small id="profileEmail"></small></span>
+          <span class="chevron">▾</span>
+        </button>
+        <div class="profile-dropdown" id="profileDropdown" hidden>
+          <div class="profile-dropdown-header">
+            <strong id="dropdownName"></strong>
+            <small id="dropdownEmail"></small>
+            <small class="profile-dropdown-company" id="dropdownCompany"></small>
+          </div>
+          <button type="button" class="signin-btn" id="dropdownSignIn" hidden>Sign in</button>
+          <button type="button" class="register-link" id="dropdownRegister" hidden>Create free account</button>
+          <button type="button" class="logout-btn" id="logoutBtn" hidden>Log out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="pf-wrap">
+    <h1>My profile</h1>
+    <p class="pf-sub">Keep your company details up to date. They are used for every new quotation you make.</p>
+
+    <form id="pfForm" novalidate>
+      <section class="pf-card">
+        <h2>Company details</h2>
+        <p>Shown to MPak on your quotations.</p>
+        <div class="pf-grid">
+          <div class="pf-field pf-full"><label for="company_name">Company name</label><input class="pf-input" id="company_name" maxlength="150" autocomplete="organization"></div>
+          <div class="pf-field"><label for="company_registration_no">Company registration no. <span class="opt">(optional)</span></label><input class="pf-input" id="company_registration_no" maxlength="50"></div>
+          <div class="pf-field"><label for="customer_code">Customer code</label><input class="pf-input" id="customer_code" readonly><p class="pf-hint">Given by MPak. Cannot be changed.</p></div>
+          <div class="pf-field pf-full"><label for="address">Company address <span class="opt">(optional)</span></label><textarea class="pf-input" id="address" maxlength="300" autocomplete="street-address"></textarea></div>
+        </div>
+      </section>
+
+      <section class="pf-card">
+        <h2>Contact details</h2>
+        <p>Who MPak should contact about your quotations.</p>
+        <div class="pf-grid">
+          <div class="pf-field"><label for="contact_person">Contact person</label><input class="pf-input" id="contact_person" maxlength="100" autocomplete="name"></div>
+          <div class="pf-field"><label for="phone">Phone <span class="opt">(optional)</span></label><input class="pf-input" id="phone" maxlength="20" autocomplete="tel" placeholder="+60 12-345 6789"></div>
+          <div class="pf-field pf-full"><label for="email">Email (your login)</label><input class="pf-input" id="email" readonly><p class="pf-hint">Your email is your login, so it cannot be changed here.</p></div>
+        </div>
+      </section>
+
+      <div class="pf-actions">
+        <button class="pf-save" id="pfSave" type="submit">Save changes</button>
+        <span class="pf-msg" id="pfMsg" role="alert"></span>
+      </div>
+    </form>
+  </main>
+
+  <script src="/scripts/auth.js"></script>
+  <script src="/js/customer-profile.js"></script>
+</body>
+</html>

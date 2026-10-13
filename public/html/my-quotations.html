@@ -6,6 +6,7 @@
   <title>MPak PTH_V5 — My quotations</title>
   <link rel="stylesheet" href="/css/quotation.css">
   <link rel="stylesheet" href="/css/my-quotations.css">
+  <link rel="stylesheet" href="/css/mpak-shell.css">
 </head>
 <body>
   <header class="topbar">
@@ -13,6 +14,7 @@
     <nav class="page-nav" aria-label="Customer pages">
       <a class="nav-link" href="/html/quotation.html">Make quotation</a>
       <a class="nav-link active" href="/html/my-quotations.html" aria-current="page">My quotations</a>
+      <a class="nav-link" href="/html/customer-profile.html">My profile</a>
     </nav>
     <div class="topbar-right">
       <div class="profile-menu" id="profileMenu">
@@ -40,6 +42,13 @@
       <div><h1>My quotations</h1><p class="mq-sub">Every quotation you have requested, and where it stands with MPak.</p></div>
       <a class="mq-new" href="/html/quotation.html">+ New quotation</a>
     </div>
+
+    <ol class="mq-steps" aria-label="How quotations work">
+      <li><b>You request</b>Choose your bag on “Make quotation”.</li>
+      <li><b>MPak reviews</b>We check your specification and prepare prices.</li>
+      <li><b>You see the result here</b>The status below updates when MPak decides.</li>
+    </ol>
+    <div class="mq-tiles" id="mqTiles"></div>
 
     <p class="mq-error" id="mqError" role="alert"></p>
 

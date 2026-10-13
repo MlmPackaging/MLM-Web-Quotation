@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak Admin — My profile</title>
+  <link rel="stylesheet" href="/css/admin-quotation.css">
+  <link rel="stylesheet" href="/css/mpak-shell.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak <span>Admin</span></div>
+    <nav class="page-nav" aria-label="Admin pages">
+      <a class="nav-link" href="/html/admin-quotation.html">Quotations</a>
+      <a class="nav-link active" href="/html/admin-profile.html" aria-current="page">My profile</a>
+    </nav>
+    <div class="topbar-right"><span id="adminName"></span><button class="ghost" id="logoutBtn" type="button">Log out</button></div>
+  </header>
+
+  <main class="pf-wrap">
+    <h1>My profile</h1>
+    <p class="pf-sub" id="pageMessage" role="alert" hidden></p>
+    <p class="pf-sub">Your staff account details.</p>
+
+    <form id="pfForm" novalidate>
+      <section class="pf-card">
+        <h2>Account</h2>
+        <p>Your name and phone can be changed. Email and role are set by the system.</p>
+        <div class="pf-grid">
+          <div class="pf-field"><label for="name">Name</label><input class="pf-input" id="name" maxlength="100" autocomplete="name"></div>
+          <div class="pf-field"><label for="phone">Phone <span class="opt">(optional)</span></label><input class="pf-input" id="phone" maxlength="20" autocomplete="tel"><p class="pf-hint" id="phoneHint" hidden>Phone is not available yet. Ask your developer to run admin_phone_column.sql.</p></div>
+          <div class="pf-field"><label for="email">Email (your login)</label><input class="pf-input" id="email" readonly></div>
+          <div class="pf-field"><label for="role">Role</label><input class="pf-input" id="role" readonly></div>
+        </div>
+      </section>
+      <div class="pf-actions">
+        <button class="pf-save" id="pfSave" type="submit">Save changes</button>
+        <span class="pf-msg" id="pfMsg" role="alert"></span>
+      </div>
+    </form>
+  </main>
+
+  <script src="/js/admin-quotation-api.js"></script>
+  <script src="/js/admin-profile.js"></script>
+</body>
+</html>
