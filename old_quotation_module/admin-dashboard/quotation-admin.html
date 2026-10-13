@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="icon" type="image/png" href="/images/MLM Logo.png">
+  <!-- Bootstrap Icons - downloaded locally, no CDN link -->
+  <link rel="stylesheet" href="/admin-dashboard/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/admin-dashboard/admin-dashboard.css">
+  <style>
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(45, 55, 72, 0.95);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      min-width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 600;
+      pointer-events: auto;
+      animation: popDown 0.4s forwards;
+    }
+
+    .toast.error {
+      border-bottom: 4px solid #ef4444;
+    }
+
+    .toast.success {
+      border-bottom: 4px solid #10b981;
+    }
+
+    .toast.info {
+      border-bottom: 4px solid #2563eb;
+    }
+
+    @keyframes popDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeOutUp {
+      from {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body data-page="quotation-admin">
+  <div id="admin-dashboard-page" class="admin-shell">
+    <header class="admin-header">
+      <div class="admin-header__title">
+        <div class="admin-badge">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1>Admin Dashboard</h1>
+          <p>Comprehensive management panel</p>
+        </div>
+      </div>
+      <div class="admin-status-card">
+        <span class="status-dot"></span>
+        <span>System Online</span>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <section id="admin-dashboard-loading" class="admin-loading">
+        <div class="loading-ring"></div>
+        <p>Loading Admin Dashboard...</p>
+      </section>
+
+      <section id="admin-dashboard-content" class="is-hidden">
+        <section id="admin-dashboard-error" class="admin-alert is-hidden"></section>
+
+        <section id="admin-stats" class="admin-stats"></section>
+
+        <section class="admin-filter-panel">
+          <div class="admin-filter-grid">
+            <div class="admin-field admin-field--search">
+              <label for="admin-search">Search Quotations</label>
+              <div class="input-wrap">
+                <span class="input-icon"><i class="bi bi-search"></i></span>
+                <input id="admin-search" type="text" placeholder="Search by company name, quotation number, or contact person...">
+              </div>
+            </div>
+            <div class="admin-field">
+              <label for="admin-filter">Filter by Status</label>
+              <select id="admin-filter">
+                <option value="all">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="submitted">Submitted</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+            <div class="admin-field">
+              <label>View Mode</label>
+              <div class="view-toggle">
+                <button id="admin-view-grid" class="view-toggle__button is-active" type="button">Grid</button>
+                <button id="admin-view-list" class="view-toggle__button" type="button">List</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-layout">
+          <div class="admin-layout__main">
+            <section class="admin-panel admin-panel--quotations">
+              <div class="admin-panel__head">
+                <h2>Quotation Management</h2>
+                <span id="admin-quotation-count" class="admin-pill"></span>
+              </div>
+
+              <div id="admin-quotation-grid" class="quotation-grid"></div>
+
+              <div id="admin-quotation-table-wrap" class="table-wrap is-hidden">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Quotation #</th>
+                      <th>Company</th>
+                      <th>Contact Person</th>
+                      <th>Email</th>
+                      <th>Total Amount</th>
+                      <th>Status</th>
+                      <th>Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-quotation-table-body"></tbody>
+                </table>
+              </div>
+
+              <div id="admin-empty-state" class="admin-empty is-hidden">
+                <div class="empty-icon">
+                  <i class="bi bi-inbox"></i>
+                </div>
+                <h3>No quotations found</h3>
+                <p>Try adjusting your search or filter criteria</p>
+              </div>
+            </section>
+          </div>
+
+          <aside class="admin-layout__side">
+            <section class="admin-panel admin-panel--activity">
+              <div class="admin-panel__head admin-panel__head--sidebar">
+                <h2>Recent Activity</h2>
+              </div>
+              <div id="admin-recent-activity" class="activity-list"></div>
+            </section>
+          </aside>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="admin-quotation-modal" class="admin-modal is-hidden" aria-hidden="true">
+    <div class="admin-modal__backdrop" data-admin-close="true"></div>
+    <div class="admin-modal__card">
+      <div class="admin-modal__head">
+        <div>
+          <h3 id="admin-quotation-modal-title">Quotation</h3>
+          <p id="admin-quotation-modal-subtitle"></p>
+          <div id="admin-quotation-modal-status" class="admin-modal__meta"></div>
+        </div>
+        <button id="admin-quotation-modal-close" class="modal-close" type="button" aria-label="Close modal">×</button>
+      </div>
+
+      <div id="admin-quotation-modal-tabs" class="admin-tabs">
+        <button class="admin-tabs__button is-active" data-section="overview" type="button">Overview</button>
+        <button class="admin-tabs__button" data-section="specs" type="button">Specifications</button>
+        <button class="admin-tabs__button" data-section="pricing" type="button">Pricing</button>
+        <button class="admin-tabs__button" data-section="company" type="button">Client Info</button>
+        <button class="admin-tabs__button" data-section="options" type="button">Options</button>
+      </div>
+
+      <div id="admin-quotation-modal-content" class="admin-modal__content"></div>
+
+      <div class="admin-modal__actions">
+        <button id="admin-modal-pdf" class="button button-green" type="button">Download PDF</button>
+        <div class="admin-modal__actions-group">
+          <button id="admin-modal-approve" class="button button-green is-hidden" type="button">Approve</button>
+          <button id="admin-modal-reject" class="button button-red is-hidden" type="button">Reject</button>
+          <button id="admin-modal-review" class="button button-slate is-hidden" type="button">Mark Reviewed</button>
+          <button class="button button-neutral" type="button" data-admin-close="true">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script defer src="/scripts/sidebar-behavior.js"></script>
+  <script src="/scripts/auth.js"></script>
+  <script src="/scripts/jspdf.umd.min.js"></script>
+  <script src="/scripts/pdf-generator.js"></script>
+  <script src="/scripts/quotation-shell.js"></script>
+  <script src="/admin-dashboard/admin-dashboard.js"></script>
+</body>
+</html>

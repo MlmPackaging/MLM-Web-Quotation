@@ -9,17 +9,111 @@ const adminProfileRoutes = require("./router/admin-profileAPI");
 const customerProfileRoutes = require("./router/customerprofileAPI");
 
 require("dotenv").config();
+const mysqlPool = require("./mysqlDb");
+const { createQuotationBackend } = require("./old_quotation_module/quotation-backend");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const publicDirectory = path.join(__dirname, "public");
 const scriptsDirectory = path.join(__dirname, "scripts");
+const legacyQuotationDirectory = path.join(__dirname, "old_quotation_module");
+
+function logQuotationRequest(req) {
+  console.info(`[legacy quotation] ${req.method} ${req.path}`);
+}
+
+function logQuotationSuccess(req, status) {
+  console.info(`[legacy quotation] ${req.method} ${req.path} ${status}`);
+}
+
+function logQuotationFailure(req, status, error) {
+  console.error(
+    `[legacy quotation] ${req.method} ${req.path} ${status}:`,
+    error?.message || error,
+  );
+}
+
+function formatQuotationAuditValue(value) {
+  if (value === null || value === undefined || value === "") return "(empty)";
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+const legacyQuotationBackend = createQuotationBackend({
+  database: mysqlPool,
+  logger: {
+    apiRequest: logQuotationRequest,
+    apiSuccess: logQuotationSuccess,
+    apiFail: logQuotationFailure,
+  },
+  async addAuditLogEntryWithRetry(entry = {}) {
+    const timestamp = new Date(entry.timestamp || Date.now())
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
+
+    await mysqlPool.query(
+      `INSERT INTO quotation_audit_log
+         (event_timestamp, account, action, module, identifier, change_summary, data_payload)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        timestamp,
+        entry.account || "Unknown",
+        entry.action || "",
+        entry.module || "Quotation",
+        entry.identifier || "",
+        entry.changeSummary || "",
+        JSON.stringify(entry.dataPayload || {}),
+      ],
+    );
+  },
+  resolveAuditAccount(actor, fallback = "Unknown") {
+    if (typeof actor === "string" && actor.trim()) return actor.trim();
+    return (
+      actor?.email ||
+      actor?.user_email ||
+      actor?.account ||
+      actor?.name ||
+      fallback
+    );
+  },
+  createAuditFieldEntry(field, oldValue, newValue, extra = {}) {
+    return {
+      field,
+      oldValue,
+      newValue,
+      display: `${field}: ${formatQuotationAuditValue(oldValue)} -> ${formatQuotationAuditValue(newValue)}`,
+      ...extra,
+    };
+  },
+  summarizeAuditChanges(changedFields = [], fallback = "Quotation updated") {
+    if (!changedFields.length) return fallback;
+    const summary = changedFields
+      .slice(0, 3)
+      .map((item) => item.display)
+      .join("; ");
+    return changedFields.length > 3
+      ? `${summary}; +${changedFields.length - 3} more changes`
+      : summary;
+  },
+});
 
 app.use(express.json());
 app.use(express.static(publicDirectory));
 app.use("/scripts", express.static(scriptsDirectory));
+app.use("/quotation-form", express.static(path.join(legacyQuotationDirectory, "quotation-form")));
+app.use("/dashboard", express.static(path.join(legacyQuotationDirectory, "dashboard")));
+app.use("/admin-dashboard", express.static(path.join(legacyQuotationDirectory, "admin-dashboard")));
+app.use("/scripts", express.static(path.join(legacyQuotationDirectory, "scripts")));
+app.use("/images", express.static(path.join(legacyQuotationDirectory, "images")));
+app.get("/quotation.js", (_req, res) => {
+  res.sendFile(path.join(legacyQuotationDirectory, "quotation.js"));
+});
+app.get("/quotation-bag3d.js", (_req, res) => {
+  res.sendFile(path.join(legacyQuotationDirectory, "quotation-bag3d.js"));
+});
 app.use("/api/quotation", quotationRoutes);
 app.use("/api/admin/quotation", adminQuotationRoutes);
+app.use(legacyQuotationBackend.router);
 app.use("/api/admin/profile", adminProfileRoutes);
 app.use("/api/customer-profile", customerProfileRoutes);
 
@@ -386,6 +480,16 @@ async function start() {
     console.error("[startup] Failed to ensure customer table exists:", error.message);
   }
 
+  try {
+    await legacyQuotationBackend.initializeQuotationTables();
+    console.log("Legacy quotation database tables are ready");
+  } catch (error) {
+    console.error(
+      "[startup] Failed to initialize legacy quotation tables:",
+      error.message,
+    );
+  }
+
   server = app.listen(PORT, () => {
     console.log(`Quotation login server running on http://localhost:${PORT}`);
   });
@@ -396,12 +500,12 @@ start();
 async function shutdown(signal) {
   console.log(`${signal} received; closing server.`);
   if (!server) {
-    await pgPool.end();
+    await Promise.all([pgPool.end(), mysqlPool.end()]);
     process.exit(0);
     return;
   }
   server.close(async () => {
-    await pgPool.end();
+    await Promise.all([pgPool.end(), mysqlPool.end()]);
     process.exit(0);
   });
 }

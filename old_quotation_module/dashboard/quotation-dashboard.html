@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quotation Dashboard</title>
+  <link rel="stylesheet" href="/admin-dashboard/bootstrap-icons.min.css">
+  <link rel="icon" type="image/png" href="/images/MLM Logo.png">
+  <link rel="stylesheet" href="/dashboard/dashboard.css">
+  <style>
+    #toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(45, 55, 72, 0.95);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      min-width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 600;
+      pointer-events: auto;
+      animation: popDown 0.4s forwards;
+    }
+
+    .toast.error {
+      border-bottom: 4px solid #ef4444;
+    }
+
+    .toast.success {
+      border-bottom: 4px solid #10b981;
+    }
+
+    .toast.info {
+      border-bottom: 4px solid #2563eb;
+    }
+
+    @keyframes popDown {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeOutUp {
+      from {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+      }
+    }
+
+    /* ── Sticky table header & column management ── */
+    .table-container {
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .table-wrap {
+      max-height: calc(100vh - 320px);
+      overflow-x: auto;
+      overflow-y: auto;
+      min-width: 0;
+      position: relative;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .table-wrap.dragging {
+      cursor: grabbing;
+    }
+
+    .data-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #1f2937;
+    }
+
+    .data-table th {
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .data-table th:hover {
+      background-color: #374151;
+    }
+
+    .th-inner {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      overflow: hidden;
+    }
+
+    .th-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sort-icon {
+      display: inline-block;
+      flex-shrink: 0;
+      margin-left: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #d1d5db;
+    }
+
+    .data-table th.active-sort .sort-icon {
+      color: #60a5fa;
+    }
+
+    .th-col-arrow {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      font-size: 9px;
+      color: #9ca3af;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s, background 0.15s;
+      z-index: 6;
+    }
+
+    .th-col-arrow:hover {
+      background: #374151;
+      color: #ffffff;
+    }
+
+    .data-table th:hover .th-col-arrow {
+      opacity: 1;
+    }
+
+    .col-resize-handle {
+      position: absolute;
+      right: -3px;
+      top: 0;
+      height: 100%;
+      width: 7px;
+      cursor: col-resize;
+      z-index: 7;
+      background: transparent;
+    }
+
+    .col-resize-handle::after {
+      content: '';
+      position: absolute;
+      right: 3px;
+      top: 15%;
+      height: 70%;
+      width: 2px;
+      border-radius: 2px;
+      transition: background 0.15s;
+    }
+
+    .col-resize-handle:hover::after,
+    .col-resize-handle.is-resizing::after {
+      background: #667eea;
+    }
+
+    .data-table.col-resizing {
+      user-select: none;
+      cursor: col-resize;
+    }
+
+    .col-ctx-menu {
+      position: fixed;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+      z-index: 99999;
+      min-width: 180px;
+      padding: 6px 0;
+      display: none;
+      font-size: 0.8rem;
+    }
+
+    .col-ctx-menu.show { display: block; }
+
+    .col-ctx-title {
+      padding: 6px 14px 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 4px;
+    }
+
+    .col-ctx-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      cursor: pointer;
+      color: #334155;
+      font-weight: 500;
+      transition: background 0.12s;
+    }
+
+    .col-ctx-item:hover { background: #f8fafc; }
+    .col-ctx-item .ctx-icon { font-size: 13px; width: 16px; text-align: center; }
+    .col-ctx-sep { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
+
+    .col-stub-th, .col-stub-td {
+      width: 12px !important;
+      min-width: 12px !important;
+      max-width: 12px !important;
+      padding: 0 !important;
+      cursor: pointer;
+      overflow: visible !important;
+    }
+
+    .col-stub-th { background: #1f2937 !important; position: relative; z-index: 6; }
+    .col-stub-td { background: #f8fafc !important; }
+
+    .col-stub-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .col-stub-line {
+      width: 2px;
+      height: 60%;
+      background: repeating-linear-gradient(to bottom, #94a3b8 0px, #94a3b8 3px, transparent 3px, transparent 6px);
+      border-radius: 1px;
+    }
+
+    .col-stub-th:hover .col-stub-line {
+      background: repeating-linear-gradient(to bottom, #667eea 0px, #667eea 3px, transparent 3px, transparent 6px);
+    }
+
+    .col-stub-th::after {
+      content: attr(data-tip);
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: white;
+      font-size: 0.68rem;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 4px 8px;
+      border-radius: 5px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 9999;
+    }
+
+    .col-stub-th:hover::after { opacity: 1; }
+
+    .col-show-all-bar {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 0 10px;
+      flex-wrap: wrap;
+    }
+
+    .col-show-all-bar.has-hidden { display: flex; }
+
+    .col-show-all-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .col-show-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px 3px 7px;
+      border-radius: 20px;
+      background: #e0e7ff;
+      color: #3730a3;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid #c7d2fe;
+    }
+
+    .col-show-chip:hover { background: #c7d2fe; }
+    .col-show-chip .chip-x { font-size: 11px; font-weight: 900; }
+
+    .col-show-all-btn {
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: white;
+      border: 1.5px solid #667eea;
+      color: #667eea;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .col-show-all-btn:hover { background: #667eea; color: white; }
+
+    .main {
+      min-width: 0;
+    }
+
+    .page-shell {
+      min-width: 0;
+    }
+
+    .table-panel {
+      min-width: 0;
+    } 
+
+    .data-table {
+      table-layout: auto;
+      width:max-content;
+    }
+
+    .data-table td {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 0;
+    }
+
+    .data-table td[data-col-key="status"] {
+      overflow: visible;
+      text-overflow: initial;
+      white-space: normal;
+      max-width: none;
+    }
+
+    .data-table td[data-col-key="updatedAt"] {
+      overflow: visible;
+      text-overflow: initial;
+      white-space: normal;
+      max-width: none;
+      min-width: 190px;
+    }
+
+    .lu-text {
+      white-space: nowrap;
+    }
+
+    .lu-date {
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    #dashboard-table-wrap .data-table {
+      width: max-content;
+      min-width: 100%;
+    }
+  </style>
+</head>
+<body data-page="quotation-dashboard">
+  <div id="dashboard-page" class="page-shell">
+    <header class="site-header">
+      <div class="brand-block">
+        <img src="/images/MLM Logo.png" alt="MLM Packaging logo" class="brand-logo">
+        <div>
+          <p class="eyebrow">Quotation System</p>
+          <h1>Customer Dashboard</h1>
+          <p class="subtext">Quotation workspace backed by storage</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div id="dashboard-user-card" class="user-chip"></div>
+        <div class="account-active-chip">
+          <span class="active-dot"></span>
+          <span>Account Active</span>
+        </div>
+        <button id="dashboard-new-quotation" class="button button-primary" type="button">Create New Quotation</button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <section id="dashboard-error" class="notice notice-error is-hidden"></section>
+
+      <section id="dashboard-loading" class="loading-panel">
+        <div class="spinner"></div>
+        <p>Loading dashboard...</p>
+      </section>
+
+      <section id="dashboard-main" class="is-hidden">
+        <section class="hero-panel">
+          <div>
+            <p class="eyebrow">Overview</p>
+            <h2>Your quotation activity</h2>
+            <p class="subtext">Track saved drafts, submitted requests, and approved quotations.</p>
+          </div>
+        </section>
+
+        <section id="dashboard-stats" class="stats-grid"></section>
+
+        <section class="table-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">History</p>
+              <h3>My Quotations</h3>
+            </div>
+            <span id="quotation-count-pill" class="pill"></span>
+          </div>
+
+          <div class="col-show-all-bar" id="colShowAllBar">
+            <span class="col-show-all-label">🙈 Hidden:</span>
+            <button class="col-show-all-btn" onclick="colMgr.showAll()">Show All</button>
+          </div>
+
+          <div id="dashboard-empty-state" class="empty-state is-hidden">
+            <h4>No quotations yet</h4>
+            <p>Create your first quotation once the form conversion is ready.</p>
+          </div>
+
+          <div id="dashboard-table-wrap" class="table-wrap is-hidden">
+            <table class="data-table">
+            <thead>
+                <tr>
+                  <th onclick="handleSort('quotationNumber')">Quotation # <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('width')">Width (mm) <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('height')">Height (mm) <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('gusset')">Gusset (mm) <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('totalAmount')">Total Amount <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('status')">Status <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('createdAt')">Created Date <span class="sort-icon">↕</span></th>
+                  <th onclick="handleSort('updatedAt')" style="min-width:190px;">Last Updated <span class="sort-icon">↕</span></th>
+                  <th style="min-width:210px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="quotation-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-brand">
+        <img src="/images/MLM Logo.png" alt="MLM Packaging logo" class="footer-logo">
+        <div class="footer-copy">
+          <span class="footer-label">Powered by</span>
+          <strong>MLM Packaging Sdn Bhd</strong>
+        </div>
+      </div>
+      <div class="footer-meta">
+        <span>support@yourcompany.com</span>
+        <span>© 2026 All rights reserved</span>
+      </div>
+    </footer>
+  </div>
+
+  <div id="quotation-modal" class="modal is-hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close-modal="true"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">Quotation Detail</p>
+          <h3 id="quotation-modal-title">Quotation</h3>
+          <div id="quotation-modal-status" class="modal-meta"></div>
+        </div>
+        <button id="quotation-modal-close" class="icon-button" type="button" aria-label="Close modal">×</button>
+      </div>
+
+      <div id="quotation-modal-tabs" class="tab-row">
+        <button class="tab-button is-active" data-section="overview" type="button">Overview</button>
+        <button class="tab-button" data-section="specs" type="button">Specifications</button>
+        <button class="tab-button" data-section="pricing" type="button">Pricing</button>
+        <button class="tab-button" data-section="company" type="button">Company</button>
+      </div>
+
+      <div id="quotation-modal-content" class="modal-content"></div>
+
+      <div class="modal-actions">
+        <button id="modal-download-button" class="button button-secondary" type="button">Download PDF</button>
+        <button id="modal-submit-button" class="button button-warning is-hidden" type="button">Submit</button>
+        <button id="modal-delete-button" class="button button-danger is-hidden" type="button">Delete</button>
+        <button class="button button-ghost" type="button" data-close-modal="true">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script defer src="/scripts/sidebar-behavior.js"></script>
+  <script src="/scripts/auth.js"></script>
+  <script src="/scripts/jspdf.umd.min.js"></script>
+  <script src="/scripts/pdf-generator.js"></script>
+  <script src="/scripts/quotation-shell.js"></script>
+  <script src="/dashboard/dashboard.js"></script>
+</body>
+</html>
