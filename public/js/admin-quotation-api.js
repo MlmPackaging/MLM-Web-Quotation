@@ -31,6 +31,8 @@ window.AdminQuotationAPI = (function () {
 
   return {
     me: () => request(BASE + '/me'),
+    getProfile: () => request('/api/admin/profile'),
+    saveProfile: (payload) => request('/api/admin/profile', json('PUT', payload)),
     summary: () => request(BASE + '/summary'),
     list: (params) => request(BASE + '/list?' + new URLSearchParams(params)),
     get: (id) => request(BASE + '/' + id),

@@ -5,6 +5,8 @@ const pgPool = require("./db");
 const { createAdminToken, verifyAdminToken } = require("./authToken");
 const quotationRoutes = require("./router/quotationAPI");
 const adminQuotationRoutes = require("./router/adminquotationAPI");
+const adminProfileRoutes = require("./router/admin-profileAPI");
+const customerProfileRoutes = require("./router/customerprofileAPI");
 
 require("dotenv").config();
 const mysqlPool = require("./mysqlDb");
@@ -126,6 +128,8 @@ app.get("/quotation-bag3d.js", (_req, res) => {
 app.use("/api/quotation", quotationRoutes);
 app.use("/api/admin/quotation", adminQuotationRoutes);
 app.use(legacyQuotationBackend.router);
+app.use("/api/admin/profile", adminProfileRoutes);
+app.use("/api/customer-profile", customerProfileRoutes);
 
 function publicUser(user) {
   return {

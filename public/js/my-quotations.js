@@ -41,6 +41,15 @@
       Object.keys(counts).map((k) => chip(k, statusName(k), counts[k])).join('');
   }
 
+  function renderTiles() {
+    const n = (keys) => state.rows.filter((r) => keys.includes(r.quotation_status)).length;
+    const tile = (num, name) => `<div class="mq-tile"><b>${num}</b><span>${name}</span></div>`;
+    $('mqTiles').innerHTML = tile(state.rows.length, 'Total requested') +
+      tile(n(['SUBMITTED', 'IN_REVIEW']), 'Waiting for MPak') +
+      tile(n(['QUOTED']), 'Quotation ready') +
+      tile(n(['ACCEPTED', 'REJECTED', 'CANCELLED']), 'Decided or closed');
+  }
+
   function renderRows() {
     const q = state.q.toLowerCase();
     const rows = state.rows.filter((r) =>
@@ -68,7 +77,7 @@
       if (!session) { goLogin(); return; }
       const r = await API.mine(session);
       state.rows = r.rows;
-      renderChips(); renderRows();
+      renderChips(); renderTiles(); renderRows();
     } catch (e) {
       if (e.status === 401) { goLogin(); return; }
       $('mqError').textContent = e.message;
