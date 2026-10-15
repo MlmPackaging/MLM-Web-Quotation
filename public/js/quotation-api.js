@@ -15,8 +15,13 @@ window.QuotationAPI = (function () {
   }
 
   return {
-    // -> { papers, printing, handles }
+    // -> { papers, printing, handles } containing active rate-card option keys and labels
     loadOptions: () => request(BASE + '/options'),
+    calculate: (payload) => request(BASE + '/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }),
     // -> { quotation_id, quotation_no, quantities }
     // -> { rows } only this customer's quotations. session = { customer_id, email }
     mine: (session) => request(BASE + '/mine', {

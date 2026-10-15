@@ -1,5 +1,5 @@
-const $=id=>document.getElementById(id); const bagGrid=$('bagGrid'); let optionsLoaded=false;
-const bags=Array.from({length:16},(_,i)=>{const n=i+1;const white=n<=8;const cup=n===1||n===9?'2-cup':n===2||n===10?'4-cup':'';return {n,white,cup,h:320,w:(n===1||n===9)?200:(n===2||n===10)?250:320,g:(n===1||n===9)?120:(n===2||n===10)?180:115,material:white?'White Kraft 100 gsm':'Recycled Kraft 120 gsm'}});
+const $=id=>document.getElementById(id); const bagGrid=$('bagGrid'); let optionsLoaded=false,estimateTimer=0,estimateRequest=0,quantityMaximum=1000000,paperOptions=[];
+const bags=Array.from({length:16},(_,i)=>{const n=i+1;const white=n<=8;const cup=n===1||n===9?'2-cup':n===2||n===10?'4-cup':'';return {n,white,cup,h:320,w:(n===1||n===9)?200:(n===2||n===10)?250:320,g:(n===1||n===9)?120:(n===2||n===10)?180:115}});
 let selected=1;
 const previewSources=new Map();
 function previewGeometry(h,w,g){
@@ -84,16 +84,26 @@ function reshapeBag(){
     label.setAttribute('transform','rotate('+angle+' '+x+' '+y+')');
   });
 }
-bags.forEach(b=>{const el=document.createElement('button');el.type='button';el.className='bag '+(b.white?'white':'kraft')+(b.n===1?' active':'');el.dataset.n=b.n;const img=embeddedBagImages['bag-'+String(b.n).padStart(2,'0')+'.webp'];el.innerHTML='<span class="bag-visual"><img class="bag-photo" src="'+img+'" alt="Bag '+b.n+' printed sample" loading="lazy"><svg class="dimension-overlay" viewBox="0 0 100 100" aria-hidden="true"><text x="22" y="54" transform="rotate(-90 22 54)">'+b.h+' mm</text><text x="51" y="85">'+b.w+'</text><text x="83" y="82" transform="rotate(-55 83 82)">'+b.g+'</text></svg></span><span class="bag-copy"><strong>Bag '+b.n+'</strong><span class="material-badge">'+(b.white?'White':'Recycled')+' Kraft</span></span><small>'+(b.cup||'Printed sample')+'</small>';el.setAttribute('aria-label','Bag '+b.n+', '+b.h+' by '+b.w+' by '+b.g+' millimetres, '+b.material);el.onclick=()=>selectBag(b.n);bagGrid.appendChild(el)});
-function selectBag(n){selected=n;const b=bags[n-1];document.querySelectorAll('.bag').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));$('height').value=b.h;$('width').value=b.w;$('gusset').value=b.g;$('material').value=b.material;$('selectedPhoto').src=embeddedBagImages['bag-'+String(n).padStart(2,'0')+'.webp'];$('selectedPhoto').alt='Selected Bag '+n;$('selectedName').textContent='Bag '+n+ (b.cup?' · '+b.cup:'');$('selectedMaterial').textContent=b.material;update()}
+bags.forEach(b=>{const el=document.createElement('button');el.type='button';el.className='bag '+(b.white?'white':'kraft')+(b.n===1?' active':'');el.dataset.n=b.n;const img=embeddedBagImages['bag-'+String(b.n).padStart(2,'0')+'.webp'];el.innerHTML='<span class="bag-visual"><img class="bag-photo" src="'+img+'" alt="Bag '+b.n+' printed sample" loading="lazy"><svg class="dimension-overlay" viewBox="0 0 100 100" aria-hidden="true"><text x="22" y="54" transform="rotate(-90 22 54)">'+b.h+' mm</text><text x="51" y="85">'+b.w+'</text><text x="83" y="82" transform="rotate(-55 83 82)">'+b.g+'</text></svg></span><span class="bag-copy"><strong>Bag '+b.n+'</strong><span class="material-badge">'+(b.white?'White':'Recycled')+' Kraft</span></span><small>'+(b.cup||'Printed sample')+'</small>';el.setAttribute('aria-label','Bag '+b.n+', '+b.h+' by '+b.w+' by '+b.g+' millimetres');el.onclick=()=>selectBag(b.n);bagGrid.appendChild(el)});
+function selectBag(n){selected=n;const b=bags[n-1];document.querySelectorAll('.bag').forEach(x=>x.classList.toggle('active',+x.dataset.n===n));$('height').value=b.h;$('width').value=b.w;$('gusset').value=b.g;$('material').value=defaultPaperOption(b.white);$('selectedPhoto').src=embeddedBagImages['bag-'+String(n).padStart(2,'0')+'.webp'];$('selectedPhoto').alt='Selected Bag '+n;$('selectedName').textContent='Bag '+n+ (b.cup?' · '+b.cup:'');$('selectedMaterial').textContent=$('material').selectedOptions[0]?.textContent||'';update()}
 let quantitySets=[],chosenQuantities=[],pendingQuantities=[],activeSet=0;
 const formatQty=n=>n.toLocaleString('en-MY');
-function parseQty(raw){const value=raw.trim();if(!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value))return NaN;const n=Number(value.replace(/,/g,''));return Number.isSafeInteger(n)&&n>=500?n:NaN}
+function parseQty(raw){const value=raw.trim();if(!/^(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(value))return NaN;const n=Number(value.replace(/,/g,''));return Number.isSafeInteger(n)&&n>=500&&n<=quantityMaximum?n:NaN}
 function makeQuantitySets(q){
   if(q===2000)return [[1000,2000,3000,5000],[2000,5000,7500,10000],[2000,5000,10000,15000]];
   if(q===5000)return [[3000,5000,7500,10000],[5000,10000,15000,20000],[5000,10000,20000,30000]];
-  const round=n=>Math.max(500,Math.ceil(n/500)*500);
-  const unique=arr=>{const values=[...new Set(arr)].sort((a,b)=>a-b);while(values.length<4)values.push(round(values[values.length-1]+500));return values};
+  const round=n=>Math.min(quantityMaximum,Math.max(500,Math.ceil(n/500)*500));
+  const unique=arr=>{
+    const values=[...new Set(arr.map(round))].sort((a,b)=>a-b);
+    while(values.length<4){
+      let next=round(values[values.length-1]+500);
+      if(next===values[values.length-1])next=values[values.length-1]-500;
+      while(next>=500&&values.includes(next))next-=500;
+      if(next<500)break;
+      values.push(next);values.sort((a,b)=>a-b);
+    }
+    return values;
+  };
   return [unique([Math.max(500,Math.floor(q*.6/500)*500),q,round(q*1.5),round(q*2)]),unique([q,round(q*2),round(q*3),round(q*4)]),unique([q,round(q*2),round(q*4),round(q*6)])];
 }
 function quantity(){return chosenQuantities.length===4?chosenQuantities.map(formatQty).join(' / ')+' pcs':'Choose and confirm four quantities'}
@@ -101,7 +111,7 @@ function qtyError(message){$('quantityError').textContent=message}
 function tierMarkup(values){return values.map(n=>'<span>'+formatQty(n)+'<small>pcs</small></span>').join('')}
 function selectSet(n){activeSet=n;chosenQuantities=n===4?[]:[...quantitySets[n-1]];pendingQuantities=[];$('customQuantities').hidden=n!==4;$('quantityReview').hidden=true;qtyError('');$('quantityStatus').textContent=n===4?'': 'Selected: '+quantity();update()}
 $('showOptions').onclick=()=>{
-  const q=parseQty($('desiredQty').value);if(!Number.isFinite(q)){qtyError('Please enter a whole-number quantity of at least 500 pcs.');$('desiredQty').focus();return}
+  const q=parseQty($('desiredQty').value);if(!Number.isFinite(q)){qtyError('Please enter a whole-number quantity from 500 to '+formatQty(quantityMaximum)+' pcs.');$('desiredQty').focus();return}
   quantitySets=makeQuantitySets(q);$('optionsIntro').textContent='Based on your requested '+formatQty(q)+' pcs, choose four quantities to compare.';
   $('suggestedSets').innerHTML=quantitySets.map((set,i)=>'<label class="set-card"><input type="radio" name="qtySet" value="'+(i+1)+'" '+(i===0?'checked':'')+'><span><strong>Set '+(i+1)+' — '+['Smaller quantities','Medium quantities','Larger quantities'][i]+'</strong><span class="tier-values">'+tierMarkup(set)+'</span></span></label>').join('');
   document.querySelector('input[name="qtySet"][value="4"]').checked=false;$('quantityOptions').hidden=false;selectSet(1);
@@ -112,7 +122,7 @@ function resetCustom(){chosenQuantities=[];pendingQuantities=[];$('quantityRevie
 [1,2,3,4].forEach(i=>$('tier'+i).addEventListener('input',resetCustom));
 $('reviewQuantities').onclick=()=>{
   const raw=[1,2,3,4].map(i=>$('tier'+i).value);if(raw.some(v=>!v.trim())){qtyError('Please enter all four quantities to continue.');return}
-  const values=raw.map(parseQty);if(values.some(v=>!Number.isFinite(v))){qtyError('Each quantity must be a whole number of at least 500 pcs.');return}
+  const values=raw.map(parseQty);if(values.some(v=>!Number.isFinite(v))){qtyError('Each quantity must be a whole number from 500 to '+formatQty(quantityMaximum)+' pcs.');return}
   if(new Set(values).size!==4){qtyError('Please enter four different quantities so you can compare prices.');return}
   pendingQuantities=values.sort((a,b)=>a-b);pendingQuantities.forEach((n,i)=>$('tier'+(i+1)).value=formatQty(n));qtyError('');$('sortedQuantities').innerHTML=tierMarkup(pendingQuantities);$('quantityReview').hidden=false;$('confirmQuantities').focus();
 };
@@ -131,16 +141,17 @@ function updateVolume(){
   $('bagVolume').textContent=state.valid?state.volume.toFixed(5):'—';
   $('volumeFormula').textContent=state.valid?sizes.map(v=>String(v/1000)).join(' × ')+' = '+state.volume.toFixed(5)+' m³':'Enter three positive dimensions to calculate volume.';
   const white=selected<=8;
-  [...$('material').options].forEach(o=>{if(o.dataset.heavy==='1')o.disabled=o.dataset.family!==(white?'white':'recycled')});
+  [...$('material').options].forEach(o=>{if(o.dataset.heavy==='1'&&o.dataset.family!=='other')o.disabled=o.dataset.family!==(white?'white':'recycled')});
   const material=heavyMaterial(white);
+  const materialLabel=paperOptions.find(option=>option.option_key===material)?.label||'';
   const applied=$('material').value===material;
   $('materialAdvice').hidden=!state.valid||!state.large||!material;
-  $('materialAdviceText').textContent=applied?'140 gsm selected for this large bag. MPak will confirm carrying strength.':'This bag is larger than 0.017 m³. Please select '+material+'. MPak will confirm carrying strength.';
-  $('applyMaterial').textContent='Select '+material;
+  $('materialAdviceText').textContent=applied?'140 gsm selected for this large bag. MPak will confirm carrying strength.':'This bag is larger than 0.017 m³. Please select '+materialLabel+'. MPak will confirm carrying strength.';
+  $('applyMaterial').textContent='Select '+materialLabel;
   $('applyMaterial').hidden=applied;
   const isHeavy=($('material').selectedOptions[0]||{dataset:{}}).dataset.heavy==='1';
   $('strengthHelp').hidden=!state.large&&!isHeavy;
-  $('selectedMaterial').textContent=$('material').value;
+  $('selectedMaterial').textContent=selectedLabel('material');
 }
 function update(){
   $('success').classList.remove('show');$('quoteBtn').disabled=!optionsLoaded;
@@ -150,10 +161,12 @@ function update(){
   if(card){
     const labels=card.querySelectorAll('.dimension-overlay text');
     labels.forEach((label,i)=>label.textContent=values[i]+(i===0?' mm':''));
-    card.setAttribute('aria-label','Bag '+selected+', height '+values[0]+', width '+values[1]+', gusset '+values[2]+' millimetres, '+$('material').value);
+    card.setAttribute('aria-label','Bag '+selected+', height '+values[0]+', width '+values[1]+', gusset '+values[2]+' millimetres, '+selectedLabel('material'));
   }
   reshapeBag();
-  const rows=[['1','Bag & size','Bag '+selected+' · '+$('height').value+' × '+$('width').value+' × '+$('gusset').value+' mm (H × W × G)'],['2','Material',$('material').value],['3','Printing',$('print').value],['4','Handle',$('handle').value],['5','Quantities to quote',quantity()],['6','Delivery',deliverySummary()]];$('specs').innerHTML=rows.map(r=>'<div class="spec"><b>'+r[0]+'</b><span><em>'+r[1]+'</em>'+escapeHTML(r[2])+'</span></div>').join('')}
+  const rows=[['1','Bag & size','Bag '+selected+' · '+$('height').value+' × '+$('width').value+' × '+$('gusset').value+' mm (H × W × G)'],['2','Material',selectedLabel('material')],['3','Printing',selectedLabel('print')],['4','Handle',selectedLabel('handle')],['5','Quantities to quote',quantity()],['6','Delivery',deliverySummary()]];$('specs').innerHTML=rows.map(r=>'<div class="spec"><b>'+r[0]+'</b><span><em>'+r[1]+'</em>'+escapeHTML(r[2])+'</span></div>').join('');
+  schedulePricePreview();
+}
 function escapeHTML(value){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function deliverySummary(){const country=$('country').value==='MY'?'Malaysia':'Singapore';if($('laterDestination').checked)return country+' · destination to follow · delivery excluded';const place=$('country').value==='MY'?[$('areaName').value.trim(),$('stateName').value,$('postcode').value].filter(Boolean).join(', '):$('postcode').value;return country+' · '+(place||'destination pending')+' · delivery excluded'}
 function deliveryValidation(){if($('laterDestination').checked)return '';const sg=$('country').value==='SG';if(!sg&&!$('areaName').value.trim())return 'Please enter your area / town, or choose to provide the location later.';if(!sg&&!$('stateName').value)return 'Please select your state / federal territory, or provide the location later.';const code=$('postcode').value;if((sg||code)&&!(sg?/^\d{6}$/:/^\d{5}$/).test(code))return sg?'Please enter a 6-digit Singapore postcode, or choose to provide it later.':'Please enter a 5-digit Malaysia postcode, or leave it blank.';return ''}
@@ -191,7 +204,7 @@ function saveQuoteDraft(){try{sessionStorage.setItem(DRAFT_KEY,JSON.stringify(ca
 function restoreQuoteDraft(d){
   if(!d)return;
   selectBag(d.selected||1);
-  Object.entries(d.fields||{}).forEach(([id,val])=>{const el=$(id);if(!el)return;if(el.type==='checkbox')el.checked=!!val;else el.value=val});
+  Object.entries(d.fields||{}).forEach(([id,val])=>{const el=$(id);if(!el)return;if(el.type==='checkbox')el.checked=!!val;else if(el.tagName!=='SELECT'||[...el.options].some(option=>option.value===val))el.value=val});
   quantitySets=d.quantitySets||[];chosenQuantities=d.chosenQuantities||[];activeSet=d.activeSet||0;
   if(quantitySets.length&&activeSet>=1&&activeSet<=3){
     $('suggestedSets').innerHTML=quantitySets.map((set,i)=>'<label class="set-card"><input type="radio" name="qtySet" value="'+(i+1)+'" '+(i+1===activeSet?'checked':'')+'><span><strong>Set '+(i+1)+' — '+['Smaller quantities','Medium quantities','Larger quantities'][i]+'</strong><span class="tier-values">'+tierMarkup(set)+'</span></span></label>').join('');
@@ -213,21 +226,39 @@ function loadQuoteDraftIfAny(){
 initQuotation();
 
 // ------------------------------------------------------------------
-// Database-backed options (paper_master, printing_master, handle_master)
-// <option value> stays the human label; data-id carries the database id.
+// Database-backed quotation rate-card options (the same types as legacy).
 // ------------------------------------------------------------------
-const paperLabel=p=>p.paper_name+' '+p.gsm+' gsm';
+function paperFamily(option){
+  const label=String(option.label||'');
+  if(/white/i.test(label))return 'white';
+  if(/brown|sack|recycled/i.test(label))return 'recycled';
+  return 'other';
+}
+function paperWeight(option){
+  const configured=Number(option.weight_kg_per_m2);
+  if(configured>0)return configured*1000;
+  const match=String(option.label||'').match(/\b(\d{2,3})\b/);
+  return match?Number(match[1]):0;
+}
+function defaultPaperOption(white){
+  const family=white?'white':'recycled';
+  const options=paperOptions.filter(option=>paperFamily(option)===family);
+  const preferred=options.find(option=>paperWeight(option)===(white?100:120));
+  return (preferred||options[0]||paperOptions[0]||{}).option_key||'';
+}
 function fillSelect(id,rows,toOption){
-  $(id).innerHTML=rows.map(r=>{const o=toOption(r);return '<option value="'+escapeHTML(o.value)+'" data-id="'+o.id+'"'+(o.extra||'')+'>'+escapeHTML(o.text)+'</option>'}).join('');
+  $(id).innerHTML=rows.map(r=>{const o=toOption(r);return '<option value="'+escapeHTML(o.value)+'"'+(o.extra||'')+'>'+escapeHTML(o.text)+'</option>'}).join('');
 }
 function populateOptions(opts){
-  fillSelect('material',opts.papers,p=>{
-    const heavy=p.gsm>=140,family=/white/i.test(p.color)?'white':'recycled';
-    return {value:paperLabel(p),id:p.paper_id,text:paperLabel(p)+(heavy?' — for items over 3 kg only':''),extra:' data-heavy="'+(heavy?1:0)+'" data-family="'+family+'"'};
+  paperOptions=opts.papers||[];
+  fillSelect('material',paperOptions,p=>{
+    const heavy=paperWeight(p)>=140;
+    return {value:p.option_key,text:p.label+(heavy?' — for items over 3 kg only':''),extra:' data-heavy="'+(heavy?1:0)+'" data-family="'+paperFamily(p)+'"'};
   });
-  fillSelect('print',opts.printing,r=>({value:r.printing_name,id:r.printing_id,text:r.printing_name}));
-  fillSelect('handle',opts.handles,r=>({value:r.handle_name,id:r.handle_id,text:r.handle_name}));
+  fillSelect('print',opts.printing||[],option=>({value:option.option_key,text:option.label}));
+  fillSelect('handle',opts.handles||[],option=>({value:option.option_key,text:option.label}));
 }
+const selectedLabel=id=>String($(id).selectedOptions[0]?.textContent||'').replace(/ — for items over 3 kg only$/,'');
 // Heavier (140 gsm) paper in the same colour family as the selected bag.
 function heavyMaterial(white){
   const o=[...$('material').options].find(o=>o.dataset.heavy==='1'&&o.dataset.family===(white?'white':'recycled'));
@@ -250,13 +281,12 @@ function goLogin(){
   if(window.CustomerAuth)window.CustomerAuth.requireLogin('/html/quotation.html');
   else window.location.href='/customerlogin.html?returnTo='+encodeURIComponent('/html/quotation.html');
 }
-const selectedId=id=>Number(($(id).selectedOptions[0]||{dataset:{}}).dataset.id);
 function buildPayload(){
   const my=$('country').value==='MY';
   return {
     gallery_bag_no:selected,
     height_mm:Number($('height').value),width_mm:Number($('width').value),gusset_mm:Number($('gusset').value),
-    paper_id:selectedId('material'),printing_id:selectedId('print'),handle_id:selectedId('handle'),
+    paper_option_key:$('material').value,printing_option_key:$('print').value,handle_option_key:$('handle').value,
     quantities:chosenQuantities,
     delivery_country:$('country').value,
     delivery_area:my?$('areaName').value.trim():'',
@@ -266,13 +296,45 @@ function buildPayload(){
     quotation_purpose:document.querySelector('input[name="purpose"]:checked').value
   };
 }
+function renderPriceEstimates(estimates,versionId){
+  const preview=$('pricePreview');
+  preview.hidden=false;
+  preview.innerHTML='<h3>Indicative prices</h3>'+estimates.map(item=>
+    '<div class="estimate-row"><span>'+formatQty(item.quantity)+' pcs</span><strong>RM '+Number(item.unit_price).toFixed(4)+' / bag<br>RM '+Number(item.total_price).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+' total</strong></div>'
+  ).join('')+'<p class="estimate-note">Rate version '+escapeHTML(versionId)+'; excludes delivery and is subject to artwork and specification review.</p>';
+}
+function schedulePricePreview(){
+  clearTimeout(estimateTimer);
+  const requestId=++estimateRequest,preview=$('pricePreview');
+  if(!optionsLoaded||chosenQuantities.length!==4){
+    preview.hidden=true;
+    preview.innerHTML='';
+    return;
+  }
+  preview.hidden=false;
+  preview.innerHTML='<p>Calculating indicative prices…</p>';
+  estimateTimer=setTimeout(async()=>{
+    try{
+      const result=await QuotationAPI.calculate({
+        height_mm:Number($('height').value),width_mm:Number($('width').value),gusset_mm:Number($('gusset').value),
+        paper_option_key:$('material').value,printing_option_key:$('print').value,handle_option_key:$('handle').value,quantities:chosenQuantities
+      });
+      if(requestId!==estimateRequest)return;
+      renderPriceEstimates(result.estimates,result.rate_version_id);
+    }catch(error){
+      if(requestId!==estimateRequest)return;
+      preview.innerHTML='<p>'+escapeHTML(error.message)+' Prices could not be calculated; please refresh or contact MPak before submitting.</p>';
+    }
+  },250);
+}
 async function submitQuotation(){
   const session=getCustomerSession();
   if(!session){goLogin();return}
   const btn=$('quoteBtn');btn.disabled=true;$('apiError').textContent='';
   try{
     const r=await QuotationAPI.submit({...buildPayload(),...session});
-    $('success').textContent='✓ Quotation '+r.quotation_no+' submitted. MPak will review your specification and send prices for all four quantities.';const lk=document.createElement('a');lk.href='/html/my-quotations.html';lk.textContent=' View my quotations →';lk.style.fontWeight='700';$('success').appendChild(lk);
+    renderPriceEstimates(r.estimates,r.rate_version_id);
+    $('success').textContent='✓ Quotation '+r.quotation_no+' submitted with indicative prices saved. MPak will confirm final pricing after review.';const lk=document.createElement('a');lk.href='/html/my-quotations.html';lk.textContent=' View my quotations →';lk.style.fontWeight='700';$('success').appendChild(lk);
     $('success').classList.add('show');$('success').scrollIntoView({behavior:'smooth',block:'nearest'});
   }catch(e){
     if(e.status===401){goLogin();return}
@@ -281,7 +343,7 @@ async function submitQuotation(){
 }
 
 async function initQuotation(){
-  try{populateOptions(await QuotationAPI.loadOptions());optionsLoaded=true}
+  try{const opts=await QuotationAPI.loadOptions();quantityMaximum=Number(opts.max_quantity)||quantityMaximum;populateOptions(opts);optionsLoaded=true}
   catch(e){$('apiError').textContent='Could not load quotation options. Please refresh the page.'}
   selectBag(1);loadQuoteDraftIfAny();
 }

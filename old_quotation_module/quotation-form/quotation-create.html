@@ -117,23 +117,23 @@
               <div class="field-grid field-grid--4">
                 <label class="field">
                   <span>Height (mm)</span>
-                  <input id="height" name="height" type="number" min="50" max="1000">
-                  <small>50mm - 1000mm</small>
+                  <input id="height" name="height" type="number">
+                  <small></small>
                 </label>
                 <label class="field">
                   <span>Width (mm)</span>
-                  <input id="width" name="width" type="number" min="50" max="1000">
-                  <small>50mm - 1000mm</small>
+                  <input id="width" name="width" type="number">
+                  <small></small>
                 </label>
                 <label class="field">
                   <span>Gusset (mm)</span>
-                  <input id="gusset" name="gusset" type="number" min="0" max="500">
-                  <small>0mm - 500mm</small>
+                  <input id="gusset" name="gusset" type="number">
+                  <small></small>
                 </label>
                 <label class="field">
                   <span>Quantity</span>
-                  <input id="quantity" name="quantity" type="number" min="100" max="1000000">
-                  <small>100 - 1,000,000 pcs</small>
+                  <input id="quantity" name="quantity" type="number">
+                  <small></small>
                 </label>
               </div>
             </section>
@@ -197,10 +197,7 @@
                   <div class="field-grid field-grid--2">
                     <label class="field">
                       <span>Ink Type</span>
-                      <select id="inkType" name="inkType">
-                        <option value="normal">Normal Ink (RM60/kg)</option>
-                        <option value="metallic">Metallic Ink (RM150/kg)</option>
-                      </select>
+                      <select id="inkType" name="inkType"></select>
                     </label>
 
                     <label class="field">
@@ -222,20 +219,12 @@
               <div class="field-grid field-grid--2">
                 <label class="field">
                   <span>Varnish</span>
-                  <select id="varnish" name="varnish">
-                    <option value="None">No Varnish</option>
-                    <option value="OPV">OPV Varnish</option>
-                    <option value="Waterbase">Waterbase Varnish</option>
-                  </select>
+                  <select id="varnish" name="varnish"></select>
                   <small>Adds protective coating</small>
                 </label>
                 <label class="field">
                   <span>Lamination</span>
-                  <select id="lamination" name="lamination">
-                    <option value="None">No Lamination</option>
-                    <option value="Gloss">Gloss Lamination</option>
-                    <option value="Matt">Matt Lamination</option>
-                  </select>
+                  <select id="lamination" name="lamination"></select>
                   <small>Adds durability and finish</small>
                 </label>
               </div>
@@ -264,11 +253,11 @@
                     <div class="field-grid field-grid--2">
                       <label class="field">
                         <span>Stamping Height (mm)</span>
-                        <input id="stampingHeight" name="stampingHeight" type="number" min="10" max="500">
+                        <input id="stampingHeight" name="stampingHeight" type="number">
                       </label>
                       <label class="field">
                         <span>Stamping Width (mm)</span>
-                        <input id="stampingWidth" name="stampingWidth" type="number" min="10" max="500">
+                        <input id="stampingWidth" name="stampingWidth" type="number">
                       </label>
                     </div>
                     <div id="stamping-area-note" class="callout callout-info"></div>
@@ -291,11 +280,11 @@
                     <div class="field-grid field-grid--2">
                       <label class="field">
                         <span>Embossing Height (mm)</span>
-                        <input id="embossingHeight" name="embossingHeight" type="number" min="10" max="500">
+                        <input id="embossingHeight" name="embossingHeight" type="number">
                       </label>
                       <label class="field">
                         <span>Embossing Width (mm)</span>
-                        <input id="embossingWidth" name="embossingWidth" type="number" min="10" max="500">
+                        <input id="embossingWidth" name="embossingWidth" type="number">
                       </label>
                     </div>
                     <div id="embossing-area-note" class="callout callout-info"></div>

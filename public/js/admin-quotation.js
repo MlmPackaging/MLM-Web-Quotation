@@ -65,6 +65,8 @@
   // ---------- Editor ----------
   const opt = (list, sel) => list.map((o) =>
     `<option value="${o.id}" ${o.id === sel ? 'selected' : ''}>${esc(o.code)} — ${esc(o.name)}${o.active ? '' : ' (inactive)'}</option>`).join('');
+  const rateOpt = (list, sel) => list.map((o) =>
+    `<option value="${esc(o.option_key)}" ${o.option_key === sel ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
   const plain = (list, sel) => list.map((v) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(label(v))}</option>`).join('');
 
   function openDrawer(html) {
@@ -80,6 +82,10 @@
     const q = d.quotation, it = d.item || {}, c = d.customer || {};
     const qty = d.quantities.concat([null, null, null, null]).slice(0, 4);
     const o = d.options;
+    const rateBacked = Boolean(it.rate_paper_option_key || it.rate_printing_option_key || it.rate_handle_option_key);
+    const materialOptions = rateBacked ? rateOpt(o.rate_papers, it.rate_paper_option_key) : opt(o.papers, it.paper_id);
+    const printingOptions = rateBacked ? rateOpt(o.rate_printing, it.rate_printing_option_key) : opt(o.printing, it.printing_id);
+    const handleOptions = rateBacked ? rateOpt(o.rate_handles, it.rate_handle_option_key) : opt(o.handles, it.handle_id);
 
     openDrawer(`
       <div class="drawer-head">
@@ -106,6 +112,10 @@
         ${d.checks.map((k) => `<div class="check ${k.level}">${esc(k.text)}</div>`).join('')}
       </fieldset>
 
+      ${d.estimates.length ? `<fieldset><legend>Saved estimates · rate version ${esc(q.rate_version_id || '—')}</legend>
+        ${d.estimates.map((estimate) => `<p class="readonly">${Number(estimate.quantity).toLocaleString()} pcs · RM${Number(estimate.unit_price).toFixed(4)} per bag · RM${Number(estimate.total_price).toFixed(2)} total</p>`).join('')}
+      </fieldset>` : ''}
+
       <fieldset><legend>Customer (read only)</legend>
         <p class="readonly">${esc(c.customer_code || '')} · ${esc(c.contact_person || '')} · ${esc(c.phone || '')} · Account ${esc(c.account_status || '')}</p>
       </fieldset>
@@ -125,9 +135,9 @@
           </div>
           <p class="calc" id="calc"></p>
           <div class="grid" style="margin-top:12px">
-            <div class="full"><label for="fPaper">Material</label><select class="control" id="fPaper">${opt(o.papers, it.paper_id)}</select></div>
-            <div><label for="fPrint">Printing</label><select class="control" id="fPrint">${opt(o.printing, it.printing_id)}</select></div>
-            <div><label for="fHandle">Handle</label><select class="control" id="fHandle">${opt(o.handles, it.handle_id)}</select></div>
+            <div class="full"><label for="fPaper">Material</label><select class="control" id="fPaper">${materialOptions}</select></div>
+            <div><label for="fPrint">Printing</label><select class="control" id="fPrint">${printingOptions}</select></div>
+            <div><label for="fHandle">Handle</label><select class="control" id="fHandle">${handleOptions}</select></div>
             <div><label for="fBag">Gallery bag no. (optional)</label><input class="control" id="fBag" type="number" min="1" max="99" value="${esc(it.gallery_bag_no)}"></div>
           </div>
         </fieldset>
@@ -179,7 +189,9 @@
           status: $('fStatus').value,
           quotation_purpose: $('fPurpose').value,
           height_mm: $('fH').value, width_mm: $('fW').value, gusset_mm: $('fG').value,
-          paper_id: $('fPaper').value, printing_id: $('fPrint').value, handle_id: $('fHandle').value,
+          ...(rateBacked
+            ? { paper_option_key: $('fPaper').value, printing_option_key: $('fPrint').value, handle_option_key: $('fHandle').value }
+            : { paper_id: $('fPaper').value, printing_id: $('fPrint').value, handle_id: $('fHandle').value }),
           gallery_bag_no: $('fBag').value,
           quantities: [0, 1, 2, 3].map((i) => $('fQ' + i).value),
           delivery_country: $('fCountry').value, delivery_area: $('fArea').value,

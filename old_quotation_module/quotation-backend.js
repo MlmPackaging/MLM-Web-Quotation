@@ -2,12 +2,15 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const PDFDocument = require("pdfkit");
+const { createQuotationRateService } = require("./transformation_instructions&info/quotation-config-service");
+const { calculateQuotation } = require("./transformation_instructions&info/quotation-engine");
 
 const VALID_QUOTATION_STATUSES = ["draft", "submitted", "reviewed", "approved", "rejected"];
 
 function createQuotationBackend({
   database,
   logger,
+  authorizeAdmin,
   addAuditLogEntryWithRetry,
   resolveAuditAccount,
   createAuditFieldEntry,
@@ -29,6 +32,29 @@ function createQuotationBackend({
   }
 
   const router = express.Router();
+  const rates = createQuotationRateService({
+    database,
+    logger,
+    authorizeAdmin,
+    addAuditLogEntryWithRetry,
+    resolveAuditAccount,
+  });
+  router.use(rates.router);
+
+  async function buildPricingBreakdown(quotation) {
+    const costs = quotation.quotation_data?.calculations?.costs || {};
+    const config = await rates.getRateConfig(quotation.rate_version_id || undefined);
+    const totals = new Map();
+
+    for (const component of config.components) {
+      const amount = Number(costs[component.code] || 0);
+      if (amount <= 0) continue;
+      const group = component.report_group || "Other";
+      totals.set(group, (totals.get(group) || 0) + amount);
+    }
+
+    return [...totals].map(([description, amount]) => ({ description, amount }));
+  }
 
   function normalizeQuotationRequester(input = {}) {
     const email = String(input.user_email || input.email || "").trim();
@@ -154,6 +180,7 @@ function createQuotationBackend({
         quotation_number VARCHAR(100) UNIQUE NOT NULL,
         status ENUM('draft', 'submitted', 'reviewed', 'approved', 'rejected') DEFAULT 'draft',
         total_amount DECIMAL(15,2),
+        rate_version_id INT UNSIGNED NULL,
         user_id VARCHAR(100),
         user_email VARCHAR(255),
         user_phone VARCHAR(50),
@@ -171,6 +198,11 @@ function createQuotationBackend({
       )
     `);
 
+    const [rateVersionColumn] = await database.query("SHOW COLUMNS FROM quotations LIKE 'rate_version_id'");
+    if (!rateVersionColumn.length) {
+      await database.query("ALTER TABLE quotations ADD COLUMN rate_version_id INT UNSIGNED NULL AFTER total_amount");
+    }
+
     await database.query(`
       CREATE TABLE IF NOT EXISTS quotation_audit_log (
         audit_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -185,6 +217,8 @@ function createQuotationBackend({
         INDEX idx_quotation_audit_identifier (identifier)
       )
     `);
+
+    await rates.ensureLoaded();
   }
 
   async function fetchUserQuotations(requester) {
@@ -235,13 +269,14 @@ function createQuotationBackend({
     const ts = nowMYSQL();
     const [result] = await database.query(
       `INSERT INTO quotations
-        (quotation_number, status, total_amount, user_id, user_email, user_phone,
+        (quotation_number, status, total_amount, rate_version_id, user_id, user_email, user_phone,
          user_name, user_company, user_contact_person, user_address, quotation_data, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         quotation.quotation_number,
         quotation.status,
         quotation.total_amount,
+        quotation.rate_version_id || null,
         quotation.user_id || null,
         quotation.user_email || null,
         quotation.user_phone || null,
@@ -300,7 +335,7 @@ function createQuotationBackend({
       .trim();
   }
 
-  function generateProfessionalPDF(quotation) {
+  function generateProfessionalPDF(quotation, breakdownItems = []) {
     return new Promise((resolve, reject) => {
       try {
         const doc = new PDFDocument({
@@ -547,7 +582,7 @@ function createQuotationBackend({
         });
         doc.y = specStartY + Math.ceil(specifications.length / 2) * 20 + 25;
 
-        ensureSpace(250);
+        ensureSpace(150 + 25 * (breakdownItems.length + 1));
         doc.fillColor(colors.primary)
           .fontSize(14)
           .font("Helvetica-Bold")
@@ -557,10 +592,7 @@ function createQuotationBackend({
         const priceTableTop = doc.y;
         const priceColWidths = [contentWidth - 130, 130];
         const pricingItems = [
-          { description: "Material Cost", amount: totalCost * 0.4 },
-          { description: "Printing Cost", amount: totalCost * 0.3 },
-          { description: "Production Cost", amount: totalCost * 0.2 },
-          { description: "Handling & Packaging", amount: totalCost * 0.1 },
+          ...breakdownItems,
           { description: "Subtotal", amount: totalCost },
         ];
 
@@ -1047,14 +1079,22 @@ function createQuotationBackend({
     logger.apiRequest(req);
     try {
       console.log("[API] POST /api/quotations");
-      const { status, quotation_data, requester } = req.body;
+      const { status, form, requester } = req.body;
 
-      if (!status || !quotation_data) {
-        return res.status(400).json({ error: "Missing required fields: status, quotation_data" });
+      if (!status || !form || typeof form !== "object" || Array.isArray(form)) {
+        return res.status(400).json({ error: "Missing required fields: status, form" });
       }
 
       if (!VALID_QUOTATION_STATUSES.includes(status)) {
         return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const rateConfig = await rates.getRateConfig(undefined, true);
+      let quotation_data;
+      try {
+        quotation_data = calculateQuotation(form, rateConfig);
+      } catch (calcError) {
+        return res.status(400).json({ error: calcError.message || "Invalid quotation details" });
       }
 
       const normalizedRequester = normalizeQuotationRequester(requester);
@@ -1063,6 +1103,7 @@ function createQuotationBackend({
         quotation_number: createQuotationNumber(),
         status,
         total_amount: quotation_data.summary?.totalSellingPrice || 0,
+        rate_version_id: rateConfig.versionId,
         user_id: normalizedRequester.user_id,
         user_email: normalizedRequester.user_email,
         user_phone: normalizedRequester.user_phone,
@@ -1312,7 +1353,8 @@ function createQuotationBackend({
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const pdfBuffer = await generateProfessionalPDF(quotation);
+      const breakdown = await buildPricingBreakdown(quotation);
+      const pdfBuffer = await generateProfessionalPDF(quotation, breakdown);
       const fileName = `quotation-${quotation.quotation_number || quotation.id}.pdf`;
 
       await addAuditLogEntryWithRetry({
@@ -1341,7 +1383,7 @@ function createQuotationBackend({
     }
   });
 
-  return { router, initializeQuotationTables };
+  return { router, initializeQuotationTables, rates };
 }
 
 module.exports = { createQuotationBackend };

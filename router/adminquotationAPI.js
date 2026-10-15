@@ -1,6 +1,11 @@
 const express = require("express");
 const pgPool = require("../db");
 const { verifyAdminToken } = require("../authToken");
+const {
+  loadActiveQuotationRateConfig,
+  calculateQuotationEstimates,
+  listRateCardOptions,
+} = require("./postgresQuotationRates");
 
 const router = express.Router();
 
@@ -131,7 +136,10 @@ router.get("/list", async (req, res) => {
               to_jsonb(q)->>'created_at' AS created_at,
               c.company_name, c.contact_person, c.email,
               i.height_mm, i.width_mm, i.gusset_mm,
-              pm.paper_name, pm.gsm, pr.printing_name, hm.handle_name,
+              COALESCE(pm.paper_name, i.rate_paper_option_label) AS paper_name,
+              pm.gsm,
+              COALESCE(pr.printing_name, i.rate_printing_option_label) AS printing_name,
+              COALESCE(hm.handle_name, i.rate_handle_option_label) AS handle_name,
               (SELECT array_agg(qq.quantity ORDER BY qq.quantity)
                  FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS quantities,
               COUNT(*) OVER()::int AS total
@@ -188,9 +196,19 @@ function runChecks(q, customer, item, quantities, opts) {
       if (!row) add("error", `${label} is missing or no longer exists.`);
       else if (!row.active) add("warn", `${label} "${row.name}" is inactive.`);
     };
-    inactive(opts.papers, item.paper_id, "Material");
-    inactive(opts.printing, item.printing_id, "Printing");
-    inactive(opts.handles, item.handle_id, "Handle");
+    if (item.rate_paper_option_key || item.rate_printing_option_key || item.rate_handle_option_key) {
+      for (const [list, key, label] of [
+        [opts.rate_papers, item.rate_paper_option_key, "Material"],
+        [opts.rate_printing, item.rate_printing_option_key, "Printing"],
+        [opts.rate_handles, item.rate_handle_option_key, "Handle"],
+      ]) {
+        if (!key || !list.some((option) => option.option_key === key)) add("warn", `${label} rate option is no longer active.`);
+      }
+    } else {
+      inactive(opts.papers, item.paper_id, "Material");
+      inactive(opts.printing, item.printing_id, "Printing");
+      inactive(opts.handles, item.handle_id, "Handle");
+    }
 
     if (quantities.length !== 4) add("error", `Expected 4 quantity tiers, found ${quantities.length}.`);
     if (new Set(quantities).size !== quantities.length) add("error", "Quantity tiers contain duplicates.");
@@ -203,12 +221,18 @@ function runChecks(q, customer, item, quantities, opts) {
 }
 
 async function loadOptions() {
-  const [p, pr, h] = await Promise.all([
+  const [p, pr, h, config] = await Promise.all([
     pgPool.query(`SELECT paper_id AS id, paper_code AS code, paper_name AS name, gsm, active FROM paper_master ORDER BY paper_code`),
     pgPool.query(`SELECT printing_id AS id, printing_code AS code, printing_name AS name, active FROM printing_master ORDER BY printing_code`),
     pgPool.query(`SELECT handle_id AS id, handle_code AS code, handle_name AS name, active FROM handle_master ORDER BY handle_code`),
+    loadActiveQuotationRateConfig(),
   ]);
-  return { papers: p.rows, printing: pr.rows, handles: h.rows };
+  return {
+    papers: p.rows, printing: pr.rows, handles: h.rows,
+    rate_papers: listRateCardOptions(config, "paper"),
+    rate_printing: listRateCardOptions(config, "printing"),
+    rate_handles: listRateCardOptions(config, "handle"),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -232,12 +256,21 @@ router.get("/:id", requireNumericId, async (req, res) => {
     ]);
     const item = ir.rows[0] || null;
     let quantities = [];
+    let estimates = [];
     if (item) {
       const qq = await pgPool.query(
-        `SELECT quantity FROM quotation_quantity WHERE quotation_item_id = $1 ORDER BY quantity`,
+        `SELECT quantity, estimated_unit_price, estimated_total_price
+         FROM quotation_quantity WHERE quotation_item_id = $1 ORDER BY quantity`,
         [item.quotation_item_id],
       );
       quantities = qq.rows.map((r) => r.quantity);
+      estimates = qq.rows
+        .filter((r) => r.estimated_unit_price !== null && r.estimated_unit_price !== undefined)
+        .map((r) => ({
+          quantity: r.quantity,
+          unit_price: r.estimated_unit_price,
+          total_price: r.estimated_total_price,
+        }));
     }
     const customer = cr.rows[0] || null;
 
@@ -247,6 +280,7 @@ router.get("/:id", requireNumericId, async (req, res) => {
       customer,
       item,
       quantities,
+      estimates: estimates || [],
       options: opts,
       statuses: STATUSES.includes(q.quotation_status) ? STATUSES : [q.quotation_status, ...STATUSES],
       checks: runChecks(q, customer, item, quantities, opts),
@@ -257,8 +291,9 @@ router.get("/:id", requireNumericId, async (req, res) => {
         return buildDescription({
           company: customer && customer.company_name, country: q.delivery_country,
           h: item && item.height_mm, w: item && item.width_mm, g: item && item.gusset_mm,
-          paperName: paper && paper.name, gsm: paper && paper.gsm,
-          printingName: printing && printing.name, handleName: handle && handle.name, quantities,
+          paperName: (paper && paper.name) || (item && item.rate_paper_option_label), gsm: paper && paper.gsm,
+          printingName: (printing && printing.name) || (item && item.rate_printing_option_label),
+          handleName: (handle && handle.name) || (item && item.rate_handle_option_label), quantities,
         });
       })(),
     });
@@ -276,11 +311,15 @@ function validateEdit(body = {}) {
     status: text(body.status),
     purpose: text(body.quotation_purpose),
     country: text(body.delivery_country).toUpperCase(),
+    paper_option_key: text(body.paper_option_key),
+    printing_option_key: text(body.printing_option_key),
+    handle_option_key: text(body.handle_option_key),
     paper_id: Number(body.paper_id),
     printing_id: Number(body.printing_id),
     handle_id: Number(body.handle_id),
     gallery_bag_no: body.gallery_bag_no === "" || body.gallery_bag_no == null ? null : Number(body.gallery_bag_no),
   };
+  v.rateOptionMode = [v.paper_option_key, v.printing_option_key, v.handle_option_key].every(Boolean);
   if (!STATUSES.includes(v.status)) return { error: "Please choose a valid status." };
   if (!PURPOSES.includes(v.purpose)) return { error: "Please choose a quotation purpose." };
   if (!["MY", "SG"].includes(v.country)) return { error: "Delivery country must be Malaysia or Singapore." };
@@ -290,7 +329,7 @@ function validateEdit(body = {}) {
     if (!isInt(n) || n < min || n > max) return { error: `${key.replace("_mm", "")} must be a whole number between ${min} and ${max} mm.` };
     v[key] = n;
   }
-  if (![v.paper_id, v.printing_id, v.handle_id].every(isInt)) return { error: "Please choose a material, printing detail and handle." };
+  if (!v.rateOptionMode && ![v.paper_id, v.printing_id, v.handle_id].every(isInt)) return { error: "Please choose a material, printing detail and handle." };
   if (v.gallery_bag_no !== null && !(isInt(v.gallery_bag_no) && v.gallery_bag_no >= 1 && v.gallery_bag_no <= 99)) v.gallery_bag_no = null;
 
   const qty = Array.isArray(body.quantities) ? body.quantities.map(Number) : [];
@@ -308,6 +347,29 @@ function validateEdit(body = {}) {
   return { value: v };
 }
 
+async function resolveLegacyRateOptions(database, v, config) {
+  const [paperResult, printingResult, handleResult] = await Promise.all([
+    database.query("SELECT paper_name, gsm FROM paper_master WHERE paper_id = $1", [v.paper_id]),
+    database.query("SELECT printing_name FROM printing_master WHERE printing_id = $1", [v.printing_id]),
+    database.query("SELECT handle_name FROM handle_master WHERE handle_id = $1", [v.handle_id]),
+  ]);
+  const normalize = (value) => String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const find = (group, candidates) => {
+    const accepted = new Set(candidates.map(normalize).filter(Boolean));
+    return listRateCardOptions(config, group).find((option) =>
+      accepted.has(normalize(option.label)) || accepted.has(normalize(option.key)),
+    );
+  };
+  const paperRow = paperResult.rows[0];
+  const paper = find("paper", paperRow ? [paperRow.paper_name, `${paperRow.paper_name} ${paperRow.gsm}`] : []);
+  const printing = find("printing", [printingResult.rows[0]?.printing_name]);
+  const handle = find("handle", [handleResult.rows[0]?.handle_name]);
+  if (!paper || !printing || !handle) {
+    throw new Error("The selected legacy master values do not match active quotation rate-card options. Choose the matching rate-card types and try again.");
+  }
+  return { paper, printing, handle };
+}
+
 // ---------------------------------------------------------------------------
 // PUT /:id  save header + item + quantity tiers in one transaction
 // ---------------------------------------------------------------------------
@@ -317,6 +379,36 @@ router.put("/:id", requireNumericId, async (req, res) => {
   const id = Number(req.params.id);
 
   let client;
+  let config;
+  try {
+    config = await loadActiveQuotationRateConfig();
+  } catch (error) {
+    console.error("[admin/quotation/update] Rate-card database error:", error);
+    return fail(res, 503, "Active quotation rates are unavailable. Please try again later.");
+  }
+  let selected;
+  let estimates;
+  try {
+    selected = v.rateOptionMode
+      ? {
+        paper: listRateCardOptions(config, "paper").find((option) => option.option_key === v.paper_option_key),
+        printing: listRateCardOptions(config, "printing").find((option) => option.option_key === v.printing_option_key),
+        handle: listRateCardOptions(config, "handle").find((option) => option.option_key === v.handle_option_key),
+      }
+      : await resolveLegacyRateOptions(pgPool, v, config);
+    if (!selected.paper || !selected.printing || !selected.handle) {
+      return fail(res, 422, "A selected quotation rate option is no longer active. Refresh the quotation and try again.");
+    }
+    estimates = calculateQuotationEstimates({
+      ...v,
+      paper_option_key: selected.paper.option_key,
+      printing_option_key: selected.printing.option_key,
+      handle_option_key: selected.handle.option_key,
+    }, config);
+  } catch (error) {
+    console.error("[admin/quotation/update] Rate-card calculation error:", error);
+    return fail(res, 422, error.message || "Unable to calculate this quotation.");
+  }
   try {
     const [qUpdated, iUpdated, bagNo] = await Promise.all([
       hasColumn("quotation", "updated_at"),
@@ -328,17 +420,28 @@ router.put("/:id", requireNumericId, async (req, res) => {
 
     const h = await client.query(
       `UPDATE quotation SET quotation_status = $1, quotation_purpose = $2, delivery_country = $3,
-              delivery_state = $4, delivery_area = $5, postcode = $6${qUpdated ? ", updated_at = NOW()" : ""}
-       WHERE quotation_id = $7 RETURNING quotation_id`,
-      [v.status, v.purpose, v.country, v.state, v.area, v.postcode, id],
+              delivery_state = $4, delivery_area = $5, postcode = $6, rate_version_id = $7${qUpdated ? ", updated_at = NOW()" : ""}
+       WHERE quotation_id = $8 RETURNING quotation_id`,
+      [v.status, v.purpose, v.country, v.state, v.area, v.postcode, config.versionId, id],
     );
     if (!h.rows.length) {
       await client.query("ROLLBACK");
       return fail(res, 404, "Quotation not found.");
     }
 
-    const itemParams = [v.height_mm, v.width_mm, v.gusset_mm, v.paper_id, v.printing_id, v.handle_id];
-    let sets = "height_mm=$1, width_mm=$2, gusset_mm=$3, paper_id=$4, printing_id=$5, handle_id=$6";
+    const itemParams = [
+      v.height_mm, v.width_mm, v.gusset_mm,
+      v.rateOptionMode ? null : v.paper_id,
+      v.rateOptionMode ? null : v.printing_id,
+      v.rateOptionMode ? null : v.handle_id,
+      selected.paper.option_key, selected.paper.label,
+      selected.printing.option_key, selected.printing.label,
+      selected.handle.option_key, selected.handle.label,
+    ];
+    let sets = `height_mm=$1, width_mm=$2, gusset_mm=$3, paper_id=$4, printing_id=$5, handle_id=$6,
+      rate_paper_option_key=$7, rate_paper_option_label=$8,
+      rate_printing_option_key=$9, rate_printing_option_label=$10,
+      rate_handle_option_key=$11, rate_handle_option_label=$12`;
     if (bagNo) {
       itemParams.push(v.gallery_bag_no);
       sets += `, gallery_bag_no=$${itemParams.length}`;
@@ -356,9 +459,17 @@ router.put("/:id", requireNumericId, async (req, res) => {
     const itemId = item.rows[0].quotation_item_id;
 
     await client.query(`DELETE FROM quotation_quantity WHERE quotation_item_id = $1`, [itemId]);
+    const quantityValues = [];
+    const quantityTuples = estimates.map((estimate, index) => {
+      const start = index * 5;
+      quantityValues.push(itemId, estimate.quantity, estimate.unit_price, estimate.total_price, JSON.stringify(estimate.calculation_details));
+      return `($${start + 1}, $${start + 2}, $${start + 3}, $${start + 4}, $${start + 5}::jsonb)`;
+    });
     await client.query(
-      `INSERT INTO quotation_quantity (quotation_item_id, quantity) VALUES ($1,$2),($1,$3),($1,$4),($1,$5)`,
-      [itemId, ...v.quantities],
+      `INSERT INTO quotation_quantity
+         (quotation_item_id, quantity, estimated_unit_price, estimated_total_price, calculation_details)
+       VALUES ${quantityTuples.join(", ")}`,
+      quantityValues,
     );
 
     await client.query("COMMIT");

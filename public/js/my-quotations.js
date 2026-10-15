@@ -98,6 +98,10 @@
           ${row('Printing', x.printing_name)}
           ${row('Handle', x.handle_name)}
           ${row('Quantities', (x.quantities || []).map((n) => Number(n).toLocaleString() + ' pcs').join(' · '))}
+          ${row('Rate version', x.rate_version_id ? `Version ${x.rate_version_id}` : '')}
+          ${row('Indicative prices', (x.estimates || []).map((estimate) =>
+            `${Number(estimate.quantity).toLocaleString()} pcs: RM${Number(estimate.unit_price).toFixed(4)} per bag (RM${Number(estimate.total_price).toFixed(2)} total)`
+          ).join(' · '))}
           ${row('Purpose', x.quotation_purpose)}
           ${row('Delivery', [place(x), x.postcode, x.delivery_country].filter(Boolean).join(' · ') || 'To be provided later')}
         </dl>`;

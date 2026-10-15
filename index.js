@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const pgPool = require("./db");
-const { createAdminToken } = require("./authToken");
+const { createAdminToken, verifyAdminToken } = require("./authToken");
 const quotationRoutes = require("./router/quotationAPI");
 const adminQuotationRoutes = require("./router/adminquotationAPI");
 
@@ -31,6 +31,22 @@ function logQuotationFailure(req, status, error) {
   );
 }
 
+async function authorizeQuotationRateAdmin(req) {
+  const authorization = req.get("authorization") || "";
+  const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const claims = verifyAdminToken(token);
+  if (!claims) return false;
+
+  const result = await pgPool.query(
+    `SELECT user_role
+     FROM "user"
+     WHERE user_id = $1 AND LOWER(user_email) = $2 AND user_active = 1
+     LIMIT 1`,
+    [claims.user_id, claims.email],
+  );
+  return String(result.rows[0]?.user_role || "").toLowerCase() === "admin";
+}
+
 function formatQuotationAuditValue(value) {
   if (value === null || value === undefined || value === "") return "(empty)";
   return typeof value === "object" ? JSON.stringify(value) : String(value);
@@ -38,6 +54,7 @@ function formatQuotationAuditValue(value) {
 
 const legacyQuotationBackend = createQuotationBackend({
   database: mysqlPool,
+  authorizeAdmin: authorizeQuotationRateAdmin,
   logger: {
     apiRequest: logQuotationRequest,
     apiSuccess: logQuotationSuccess,
@@ -103,9 +120,6 @@ app.use("/dashboard", express.static(path.join(legacyQuotationDirectory, "dashbo
 app.use("/admin-dashboard", express.static(path.join(legacyQuotationDirectory, "admin-dashboard")));
 app.use("/scripts", express.static(path.join(legacyQuotationDirectory, "scripts")));
 app.use("/images", express.static(path.join(legacyQuotationDirectory, "images")));
-app.get("/quotation.js", (_req, res) => {
-  res.sendFile(path.join(legacyQuotationDirectory, "quotation.js"));
-});
 app.get("/quotation-bag3d.js", (_req, res) => {
   res.sendFile(path.join(legacyQuotationDirectory, "quotation-bag3d.js"));
 });

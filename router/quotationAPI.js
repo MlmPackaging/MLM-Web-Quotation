@@ -1,5 +1,10 @@
 const express = require("express");
 const pgPool = require("../db");
+const {
+  loadActiveQuotationRateConfig,
+  calculateQuotationEstimates,
+  listRateCardOptions,
+} = require("./postgresQuotationRates");
 
 const router = express.Router();
 
@@ -17,6 +22,31 @@ function fail(res, status, message) {
 
 const isInt = (v) => Number.isInteger(v);
 const text = (v) => String(v ?? "").trim();
+
+function validateCalculationRequest(body = {}) {
+  const v = {
+    height_mm: Number(body.height_mm),
+    width_mm: Number(body.width_mm),
+    gusset_mm: Number(body.gusset_mm),
+    paper_option_key: text(body.paper_option_key),
+    printing_option_key: text(body.printing_option_key),
+    handle_option_key: text(body.handle_option_key),
+  };
+  for (const [key, [min, max]] of Object.entries(LIMITS)) {
+    if (!Number.isInteger(v[key]) || v[key] < min || v[key] > max) {
+      return { error: `${key.replace("_mm", "")} must be a whole number between ${min} and ${max} mm.` };
+    }
+  }
+  if (![v.paper_option_key, v.printing_option_key, v.handle_option_key].every(Boolean)) {
+    return { error: "Please choose a material, printing detail and handle." };
+  }
+  const quantities = Array.isArray(body.quantities) ? body.quantities.map(Number) : [];
+  if (quantities.length !== 4 || !quantities.every((q) => isInt(q) && q >= MIN_QTY) || new Set(quantities).size !== 4) {
+    return { error: `Please provide four different quantities of at least ${MIN_QTY} pcs.` };
+  }
+  v.quantities = [...quantities].sort((a, b) => a - b);
+  return { value: v };
+}
 
 // ---------------------------------------------------------------------------
 // Optional column: quotation_item.gallery_bag_no
@@ -41,34 +71,39 @@ async function supportsGalleryBagNo() {
 // Everything the quotation form needs to fill its dropdowns.
 // ---------------------------------------------------------------------------
 router.get("/options", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
   try {
-    const [papers, printing, handles] = await Promise.all([
-      pgPool.query(
-        `SELECT paper_id, paper_code, paper_name, paper_type, gsm, color
-         FROM paper_master WHERE active = TRUE
-         ORDER BY paper_code`,
-      ),
-      pgPool.query(
-        `SELECT printing_id, printing_code, printing_name
-         FROM printing_master WHERE active = TRUE
-         ORDER BY printing_code`,
-      ),
-      pgPool.query(
-        `SELECT handle_id, handle_code, handle_name
-         FROM handle_master WHERE active = TRUE
-         ORDER BY handle_code`,
-      ),
-    ]);
+    const config = await loadActiveQuotationRateConfig();
 
     res.json({
       success: true,
-      papers: papers.rows,
-      printing: printing.rows,
-      handles: handles.rows,
+      rate_version_id: config.versionId,
+      max_quantity: config.params.input_quantity_max,
+      papers: listRateCardOptions(config, "paper"),
+      printing: listRateCardOptions(config, "printing"),
+      handles: listRateCardOptions(config, "handle"),
     });
   } catch (error) {
-    console.error("[quotation/options] Database error:", error.message);
-    fail(res, 500, "Unable to load quotation options.");
+    console.error("[quotation/options] PostgreSQL rate-card error:", error);
+    fail(res, 503, "Unable to load the active quotation types from PostgreSQL.");
+  }
+});
+
+router.post("/estimate", async (req, res) => {
+  const { error, value } = validateCalculationRequest(req.body);
+  if (error) return fail(res, 400, error);
+  try {
+    const config = await loadActiveQuotationRateConfig();
+    const estimates = calculateQuotationEstimates(value, config);
+    res.set("Cache-Control", "no-store");
+    res.json({
+      success: true,
+      rate_version_id: config.versionId,
+      estimates: estimates.map(({ quantity, unit_price, total_price }) => ({ quantity, unit_price, total_price })),
+    });
+  } catch (error) {
+    console.error("[quotation/estimate] Rate-card calculation error:", error);
+    fail(res, 422, error.message || "Unable to calculate this quotation.");
   }
 });
 
@@ -80,9 +115,9 @@ function validateQuotation(body = {}) {
     customer_id: Number(body.customer_id),
     email: text(body.email).toLowerCase(),
     gallery_bag_no: body.gallery_bag_no == null ? null : Number(body.gallery_bag_no),
-    paper_id: Number(body.paper_id),
-    printing_id: Number(body.printing_id),
-    handle_id: Number(body.handle_id),
+    paper_option_key: text(body.paper_option_key),
+    printing_option_key: text(body.printing_option_key),
+    handle_option_key: text(body.handle_option_key),
     country: text(body.delivery_country).toUpperCase(),
     later: body.delivery_later === true,
     purpose: text(body.quotation_purpose),
@@ -98,7 +133,7 @@ function validateQuotation(body = {}) {
     v[key] = n;
   }
 
-  if (![v.paper_id, v.printing_id, v.handle_id].every(isInt)) {
+  if (![v.paper_option_key, v.printing_option_key, v.handle_option_key].every(Boolean)) {
     return { error: "Please choose a material, printing detail and handle." };
   }
   if (v.gallery_bag_no !== null && !(isInt(v.gallery_bag_no) && v.gallery_bag_no >= 1 && v.gallery_bag_no <= 99)) {
@@ -158,13 +193,19 @@ router.post("/", async (req, res) => {
     );
     if (!customer.rows.length) return fail(res, 401, "Please log in again to submit your quotation.");
 
-    const [paper, printing, handle] = await Promise.all([
-      pgPool.query(`SELECT 1 FROM paper_master WHERE paper_id = $1 AND active = TRUE`, [v.paper_id]),
-      pgPool.query(`SELECT 1 FROM printing_master WHERE printing_id = $1 AND active = TRUE`, [v.printing_id]),
-      pgPool.query(`SELECT 1 FROM handle_master WHERE handle_id = $1 AND active = TRUE`, [v.handle_id]),
-    ]);
-    if (!paper.rows.length || !printing.rows.length || !handle.rows.length) {
-      return fail(res, 400, "One of the selected options is no longer available. Please refresh and try again.");
+    let config;
+    try {
+      config = await loadActiveQuotationRateConfig();
+    } catch (error) {
+      console.error("[quotation/create] Rate-card database error:", error);
+      return fail(res, 503, "Active quotation rates are unavailable. Please try again later.");
+    }
+    let estimates;
+    try {
+      estimates = calculateQuotationEstimates(v, config);
+    } catch (error) {
+      console.error("[quotation/create] Calculation error:", error);
+      return fail(res, 422, error.message || "Unable to calculate this quotation.");
     }
 
     const withBagNo = await supportsGalleryBagNo();
@@ -175,10 +216,10 @@ router.post("/", async (req, res) => {
     const header = await client.query(
       `INSERT INTO quotation
          (customer_id, quotation_status, delivery_country, delivery_state,
-          delivery_area, postcode, quotation_purpose)
-       VALUES ($1, 'SUBMITTED', $2, $3, $4, $5, $6)
+          delivery_area, postcode, quotation_purpose, rate_version_id)
+       VALUES ($1, 'SUBMITTED', $2, $3, $4, $5, $6, $7)
        RETURNING quotation_id`,
-      [v.customer_id, v.country, v.state, v.area, v.postcode, v.purpose],
+      [v.customer_id, v.country, v.state, v.area, v.postcode, v.purpose, config.versionId],
     );
     const quotationId = header.rows[0].quotation_id;
 
@@ -186,8 +227,21 @@ router.post("/", async (req, res) => {
     const quotationNo = `QT-${new Date().getFullYear()}-${String(quotationId).padStart(6, "0")}`;
     await client.query(`UPDATE quotation SET quotation_no = $1 WHERE quotation_id = $2`, [quotationNo, quotationId]);
 
-    const itemColumns = ["quotation_id", "height_mm", "width_mm", "gusset_mm", "paper_id", "printing_id", "handle_id"];
-    const itemValues = [quotationId, v.height_mm, v.width_mm, v.gusset_mm, v.paper_id, v.printing_id, v.handle_id];
+    const paperOption = config.options.paper.byKey[v.paper_option_key];
+    const printingOption = config.options.printing.byKey[v.printing_option_key];
+    const handleOption = config.options.handle.byKey[v.handle_option_key];
+    const itemColumns = [
+      "quotation_id", "height_mm", "width_mm", "gusset_mm", "paper_id", "printing_id", "handle_id",
+      "rate_paper_option_key", "rate_paper_option_label",
+      "rate_printing_option_key", "rate_printing_option_label",
+      "rate_handle_option_key", "rate_handle_option_label",
+    ];
+    const itemValues = [
+      quotationId, v.height_mm, v.width_mm, v.gusset_mm, null, null, null,
+      paperOption.key, paperOption.label,
+      printingOption.key, printingOption.label,
+      handleOption.key, handleOption.label,
+    ];
     if (withBagNo) {
       itemColumns.push("gallery_bag_no");
       itemValues.push(v.gallery_bag_no);
@@ -200,10 +254,17 @@ router.post("/", async (req, res) => {
     );
     const itemId = item.rows[0].quotation_item_id;
 
+    const quantityValues = [];
+    const quantityTuples = estimates.map((estimate, index) => {
+      const start = index * 5;
+      quantityValues.push(itemId, estimate.quantity, estimate.unit_price, estimate.total_price, JSON.stringify(estimate.calculation_details));
+      return `($${start + 1}, $${start + 2}, $${start + 3}, $${start + 4}, $${start + 5}::jsonb)`;
+    });
     await client.query(
-      `INSERT INTO quotation_quantity (quotation_item_id, quantity)
-       VALUES ($1, $2), ($1, $3), ($1, $4), ($1, $5)`,
-      [itemId, ...v.quantities],
+      `INSERT INTO quotation_quantity
+         (quotation_item_id, quantity, estimated_unit_price, estimated_total_price, calculation_details)
+       VALUES ${quantityTuples.join(", ")}`,
+      quantityValues,
     );
 
     await client.query("COMMIT");
@@ -212,6 +273,8 @@ router.post("/", async (req, res) => {
       quotation_id: quotationId,
       quotation_no: quotationNo,
       quantities: v.quantities,
+      rate_version_id: config.versionId,
+      estimates: estimates.map(({ quantity, unit_price, total_price }) => ({ quantity, unit_price, total_price })),
     });
   } catch (err) {
     if (client) await client.query("ROLLBACK").catch(() => {});
@@ -230,9 +293,10 @@ const kfmt = (n) => (Number(n) >= 1000 ? `${+(Number(n) / 1000).toFixed(1)}k` : 
 
 function describe(x) {
   const size = x.height_mm ? `${x.height_mm} x ${x.width_mm} x ${x.gusset_mm}mm` : "";
-  const paper = x.paper_name ? (x.gsm && !/gsm/i.test(x.paper_name) ? `${x.gsm}gsm ${x.paper_name}` : x.paper_name) : "";
+  const paperName = x.paper_name || x.rate_paper_option_label;
+  const paper = paperName ? (x.gsm && !/gsm/i.test(paperName) ? `${x.gsm}gsm ${paperName}` : paperName) : "";
   const tiers = (x.quantities || []).map(kfmt).join("/");
-  return [size, paper, x.printing_name, x.handle_name, tiers].filter(Boolean).join(" / ");
+  return [size, paper, x.printing_name || x.rate_printing_option_label, x.handle_name || x.rate_handle_option_label, tiers].filter(Boolean).join(" / ");
 }
 
 async function activeCustomerId(body = {}) {
@@ -248,14 +312,24 @@ async function activeCustomerId(body = {}) {
 }
 
 const MINE_SELECT = `
-  SELECT q.quotation_id, q.quotation_no, q.quotation_status, q.quotation_purpose,
+  SELECT q.quotation_id, q.quotation_no, q.quotation_status, q.quotation_purpose, q.rate_version_id,
          q.delivery_country, q.delivery_state, q.delivery_area, q.postcode,
          to_jsonb(q)->>'created_at' AS created_at,
          to_jsonb(q)->>'updated_at' AS updated_at,
          i.height_mm, i.width_mm, i.gusset_mm, to_jsonb(i)->>'gallery_bag_no' AS gallery_bag_no,
-         pm.paper_name, pm.gsm, pr.printing_name, hm.handle_name,
+         COALESCE(pm.paper_name, i.rate_paper_option_label) AS paper_name,
+         pm.gsm,
+         COALESCE(pr.printing_name, i.rate_printing_option_label) AS printing_name,
+         COALESCE(hm.handle_name, i.rate_handle_option_label) AS handle_name,
+         i.rate_paper_option_label, i.rate_printing_option_label, i.rate_handle_option_label,
          (SELECT array_agg(qq.quantity ORDER BY qq.quantity)
-            FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS quantities
+            FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS quantities,
+         (SELECT jsonb_agg(jsonb_build_object(
+                   'quantity', qq.quantity,
+                   'unit_price', qq.estimated_unit_price,
+                   'total_price', qq.estimated_total_price
+                 ) ORDER BY qq.quantity)
+            FROM quotation_quantity qq WHERE qq.quotation_item_id = i.quotation_item_id) AS estimates
   FROM quotation q
   LEFT JOIN quotation_item i ON i.quotation_id = q.quotation_id
   LEFT JOIN paper_master pm ON pm.paper_id = i.paper_id

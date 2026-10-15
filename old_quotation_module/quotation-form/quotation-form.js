@@ -1,39 +1,3 @@
-import {
-  calculateQuotation,
-  getPaperTypes,
-  getPrintingOptions,
-  getMarginIndices,
-  getHandleTypes,
-  getReinforcementBoardTypes
-} from "/quotation.js";
-
-const FOIL_TYPES = [
-  { label: "Gold Foil", value: "gold" },
-  { label: "Silver Foil", value: "silver" },
-  { label: "Matte Gold Foil", value: "matt_gold" },
-  { label: "Matte Silver Foil", value: "matt_silver" },
-  { label: "Copper Foil", value: "copper" },
-  { label: "Black Foil", value: "black" },
-  { label: "Red Foil", value: "red" },
-  { label: "Blue Foil", value: "blue" },
-  { label: "Green Foil", value: "green" },
-  { label: "Maroon Foil", value: "maroon" },
-  { label: "White Foil", value: "white" },
-  { label: "Rainbow Foil", value: "rainbow" },
-  { label: "Holographic Foil", value: "hologram" },
-  { label: "Special Foil", value: "special" }
-];
-
-const EMBOSSING_TYPES = [
-  "Standard Embossing",
-  "Deep Embossing",
-  "Multi-level Embossing",
-  "Debossing",
-  "3D"
-];
-
-const TEXTURE_TYPES = ["standard", "custom"];
-
 const PAPER_IMAGES = {
   "Art Card 190": "/images/paper-art-bag.jpg",
   "Brown Kraft 100": "/images/paper-kraft-bag.jpg",
@@ -140,16 +104,50 @@ const appState = {
   zoomImage: null
 };
 
-const paperTypes = getPaperTypes();
-const printingOptions = getPrintingOptions();
-const marginIndices = getMarginIndices();
-const handleTypes = getHandleTypes();
-const boardTypes = getReinforcementBoardTypes();
+let cfg = null;
+let paperTypes = [];
+let printingOptions = [];
+let marginIndices = [];
+let handleTypes = [];
+let boardTypes = [];
 const els = {};
 
-document.addEventListener("DOMContentLoaded", initQuotationForm);
+async function loadQuotationConfig() {
+  const response = await fetch("/api/quotation/config");
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Unable to load quotation rates");
 
-function initQuotationForm() {
+  cfg = data;
+  paperTypes = cfg.paperTypes;
+  printingOptions = cfg.printingOptions;
+  marginIndices = cfg.marginIndices;
+  handleTypes = cfg.handleTypes;
+  boardTypes = cfg.boardTypes;
+  Object.assign(COST_LABELS, cfg.costLabels);
+
+  const useAvailableValue = (current, options, getValue) =>
+    options.some((option) => String(getValue(option)) === String(current))
+      ? current
+      : getValue(options[0]) ?? "";
+  appState.form.paperName = useAvailableValue(appState.form.paperName, paperTypes, (item) => item.name);
+  appState.form.printingOption = useAvailableValue(appState.form.printingOption, printingOptions, (item) => item.name);
+  appState.form.marginIndex = useAvailableValue(appState.form.marginIndex, marginIndices, (item) => item);
+  appState.form.foilType = useAvailableValue(appState.form.foilType, cfg.foilTypes, (item) => item.value);
+  appState.form.embossingType = useAvailableValue(appState.form.embossingType, cfg.embossingTypes, (item) => item);
+  appState.form.textureType = useAvailableValue(appState.form.textureType, cfg.textureTypes, (item) => item.value);
+  appState.form.inkType = useAvailableValue(appState.form.inkType, cfg.inkTypes, (item) => item.value);
+  appState.form.varnish = useAvailableValue(appState.form.varnish, cfg.varnishTypes, (item) => item.value);
+  appState.form.lamination = useAvailableValue(appState.form.lamination, cfg.laminationTypes, (item) => item.value);
+  appState.form.handleType = useAvailableValue(appState.form.handleType, handleTypes, (item) => item.id);
+  appState.form.boardType = useAvailableValue(appState.form.boardType, boardTypes, (item) => item.id);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initQuotationForm().catch((error) => showToast(error.message || "Unable to load quotation form", "error"));
+});
+
+async function initQuotationForm() {
+  await loadQuotationConfig();
   cacheElements();
   seedSelectOptions();
   bindEvents();
@@ -208,20 +206,15 @@ function seedSelectOptions() {
     label: `${index} (${((1 - index) * 100).toFixed(1)}% margin)`
   })));
 
-  populateSelect("foilType", FOIL_TYPES.map((foil) => ({
-    value: foil.value,
-    label: foil.label
-  })));
-
-  populateSelect("embossingType", EMBOSSING_TYPES.map((type) => ({
+  populateSelect("foilType", cfg.foilTypes);
+  populateSelect("embossingType", cfg.embossingTypes.map((type) => ({
     value: type,
     label: type
   })));
-
-  populateSelect("textureType", TEXTURE_TYPES.map((type) => ({
-    value: type,
-    label: type === "standard" ? "Standard Texture" : "Custom Texture"
-  })));
+  populateSelect("textureType", cfg.textureTypes);
+  populateSelect("inkType", cfg.inkTypes);
+  populateSelect("varnish", cfg.varnishTypes);
+  populateSelect("lamination", cfg.laminationTypes);
 
   populateSelect("handleType", handleTypes.map((handle) => ({
     value: handle.id,
@@ -232,6 +225,33 @@ function seedSelectOptions() {
     value: board.id,
     label: board.label
   })));
+
+  applyLimitsToInputs();
+}
+
+function applyLimitsToInputs() {
+  const limits = cfg.limits;
+  [
+    ["width", "width", "mm"],
+    ["height", "height", "mm"],
+    ["gusset", "gusset", "mm"],
+    ["quantity", "quantity", "pcs"],
+    ["stampingHeight", "foilSize", "mm"],
+    ["stampingWidth", "foilSize", "mm"],
+    ["embossingHeight", "foilSize", "mm"],
+    ["embossingWidth", "foilSize", "mm"]
+  ].forEach(([id, key, unit]) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const [min, max] = limits[key];
+    field.min = min;
+    field.max = max;
+    const hint = field.closest(".field")?.querySelector("small");
+    if (hint) {
+      const format = (value) => key === "quantity" ? Number(value).toLocaleString() : value;
+      hint.textContent = `${format(min)} - ${format(max)} ${unit}`;
+    }
+  });
 }
 
 function populateSelect(id, items) {
@@ -273,7 +293,7 @@ function handleFieldChange(event) {
   renderAll();
 }
 
-function handleCalculate(event) {
+async function handleCalculate(event) {
   event.preventDefault();
   const validationErrors = validateForm();
   if (validationErrors.length) {
@@ -288,7 +308,14 @@ function handleCalculate(event) {
   renderError();
 
   try {
-    appState.result = calculateQuotation(normalizeFormToEngine(appState.form));
+    const response = await fetch("/api/quotation/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ form: appState.form })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "An error occurred during calculation");
+    appState.result = data.result;
   } catch (error) {
     appState.result = null;
     appState.error = error.message || "An error occurred during calculation";
@@ -430,12 +457,16 @@ function renderFinishingState() {
   els["board-helper"].textContent = board?.note || "";
 
   if (Boolean(appState.form.convertingLabor)) {
-    const volume = ((Number(appState.form.height) * Number(appState.form.width) * Number(appState.form.gusset || 115)) / 1_000_000_000).toFixed(6);
-    const glueLength = ((Number(appState.form.height) / 1000) + (2 * Number(appState.form.width) / 1000) + (Number(appState.form.gusset || 115) / 1000) - 0.02).toFixed(3);
+    const display = cfg.display;
+    const height = Number(appState.form.height);
+    const width = Number(appState.form.width);
+    const gusset = Number(appState.form.gusset) || display.convertingDefaultGusset;
+    const volume = ((height * width * gusset) / 1_000_000_000).toFixed(6);
+    const glueLength = ((height / 1000) + (2 * width / 1000) + (gusset / 1000) - display.convertingGlueDeduction).toFixed(3);
     els["converting-helper"].innerHTML = `
       <div>Bag Volume: ${volume} m³</div>
       <div>Glue Length: ${glueLength} m</div>
-      <div><em>Rate = (Converting + Glue + Handling) x 1.1 (2026 uplift)</em></div>
+      <div><em>Rate = (Converting + Glue + Handling) x ${display.convertingYearMultiplier} (annual uplift)</em></div>
     `;
   } else {
     els["converting-helper"].textContent = "";
@@ -538,11 +569,11 @@ function renderQuickActions(result) {
   `;
 
   document.getElementById("quotation-save-draft").addEventListener("click", (event) => {
-    saveQuotation(result, "draft", event.currentTarget);
+    saveQuotation("draft", event.currentTarget);
   });
 
   document.getElementById("quotation-submit-sales").addEventListener("click", (event) => {
-    saveQuotation(result, "submitted", event.currentTarget);
+    saveQuotation("submitted", event.currentTarget);
   });
 }
 
@@ -601,7 +632,7 @@ function getRequesterPayload() {
   };
 }
 
-async function saveQuotation(result, status, button = null) {
+async function saveQuotation(status, button = null) {
   const runSave = async () => {
   try {
     const response = await fetch("/api/quotations", {
@@ -609,7 +640,7 @@ async function saveQuotation(result, status, button = null) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status,
-        quotation_data: result,
+        form: appState.form,
         requester: getRequesterPayload()
       })
     });
@@ -706,166 +737,59 @@ function refreshVisualizationFromState(fullRefresh = false) {
 
 function validateForm() {
   const errors = [];
-  if (!isInputValid("width", Number(appState.form.width))) errors.push("Width must be between 50mm and 1000mm");
-  if (!isInputValid("height", Number(appState.form.height))) errors.push("Height must be between 50mm and 1000mm");
-  if (!isInputValid("gusset", Number(appState.form.gusset))) errors.push("Gusset must be between 0mm and 500mm");
-  if (!isInputValid("quantity", Number(appState.form.quantity))) errors.push("Quantity must be between 100 and 1,000,000 pieces");
+  const limits = cfg.limits;
+  if (!isInputValid("width", Number(appState.form.width))) errors.push(`Width must be between ${limits.width[0]}mm and ${limits.width[1]}mm`);
+  if (!isInputValid("height", Number(appState.form.height))) errors.push(`Height must be between ${limits.height[0]}mm and ${limits.height[1]}mm`);
+  if (!isInputValid("gusset", Number(appState.form.gusset))) errors.push(`Gusset must be between ${limits.gusset[0]}mm and ${limits.gusset[1]}mm`);
+  if (!isInputValid("quantity", Number(appState.form.quantity))) errors.push(`Quantity must be between ${limits.quantity[0].toLocaleString()} and ${limits.quantity[1].toLocaleString()} pieces`);
   return errors;
 }
 
 function isInputValid(name, value) {
-  switch (name) {
-    case "width":
-    case "height":
-      return value >= 50 && value <= 1000;
-    case "gusset":
-      return value >= 0 && value <= 500;
-    case "quantity":
-      return value >= 100 && value <= 1000000;
-    default:
-      return true;
-  }
+  const range = cfg?.limits?.[name];
+  return range ? value >= range[0] && value <= range[1] : true;
 }
 
 function getBagsPerSheet(layout) {
-  switch (layout) {
-    case "1X1Y":
-    case "0.5X2Y":
-      return 1;
-    case "0.5X1Y":
-      return 0.5;
-    case "1X2Y":
-      return 2;
-    default:
-      return 1;
-  }
+  return getLayoutConfig(layout)?.bagsPerSheet ?? 1;
 }
 
 function calcSheetSize({ width, height, gusset, layout }) {
+  const geo = cfg.layoutGeometry;
+  const item = getLayoutConfig(layout);
   const w = Number(width) / 1000;
   const h = Number(height) / 1000;
   const g = Number(gusset) / 1000;
-  let sheetWidth;
-  let sheetHeight;
-
-  switch (layout) {
-    case "0.5X2Y":
-      sheetWidth = w + g + 0.035;
-      sheetHeight = 2 * (h + 0.7 * g + 0.055);
-      break;
-    case "0.5X1Y":
-      sheetWidth = w + g + 0.035;
-      sheetHeight = h + 0.7 * g + 0.055;
-      break;
-    case "1X2Y":
-      sheetWidth = 2 * (w + g) + 0.035;
-      sheetHeight = 2 * (h + 0.7 * g + 0.055);
-      break;
-    default:
-      sheetWidth = 2 * (w + g) + 0.035;
-      sheetHeight = h + 0.7 * g + 0.055;
-  }
-
   return {
-    sheetWidth: Number(sheetWidth.toFixed(3)),
-    sheetHeight: Number(sheetHeight.toFixed(3))
+    sheetWidth: Number((item.widthMult * (w + g) + geo.edgeAllowance).toFixed(3)),
+    sheetHeight: Number((item.heightMult * (h + geo.gussetFactor * g + geo.heightAllowance)).toFixed(3))
   };
+}
+
+function getLayoutConfig(layout) {
+  return cfg.layoutGeometry.layouts.find((item) => item.key === layout);
 }
 
 function validateLayout({ sheetWidth, sheetHeight, layout }) {
-  const ok1x1 = sheetWidth >= 0.533 && sheetWidth <= 1.025 && sheetHeight >= 0.318 && sheetHeight <= 0.698;
-  const ok05x2y = sheetWidth >= 0.318 && sheetWidth <= 0.698 && sheetHeight >= 0.533 && sheetHeight <= 1.025;
-  const ok05x1y = (sheetWidth >= 0.318 && sheetWidth <= 0.698 && sheetHeight >= 0.533 && sheetHeight <= 1.025) ||
-    (sheetWidth >= 0.533 && sheetWidth <= 1.025 && sheetHeight >= 0.318 && sheetHeight <= 0.698);
-  const ok1x2y = (sheetWidth >= 0.3 && sheetWidth <= 0.698 && sheetHeight >= 0.42 && sheetHeight <= 1.025) ||
-    (sheetWidth >= 0.42 && sheetWidth <= 1.025 && sheetHeight >= 0.3 && sheetHeight <= 0.698);
-
-  switch (layout) {
-    case "1X1Y":
-      return { valid: ok1x1 };
-    case "0.5X2Y":
-      return { valid: ok05x2y };
-    case "0.5X1Y":
-      return { valid: ok05x1y };
-    case "1X2Y":
-      return { valid: ok1x2y };
-    default:
-      return { valid: true };
-  }
+  const ranges = getLayoutConfig(layout)?.validRanges || [];
+  return {
+    valid: ranges.some(([wMin, wMax, hMin, hMax]) =>
+      sheetWidth >= wMin && sheetWidth <= wMax && sheetHeight >= hMin && sheetHeight <= hMax)
+  };
 }
 
 function getSuitableLayouts() {
-  const layouts = ["1X1Y", "0.5X2Y", "0.5X1Y", "1X2Y"];
-  const suitableLayouts = [];
-  for (const layout of layouts) {
-    const { sheetWidth, sheetHeight } = calcSheetSize({
-      width: appState.form.width,
-      height: appState.form.height,
-      gusset: appState.form.gusset,
-      layout
-    });
-
-    const validation = validateLayout({ sheetWidth, sheetHeight, layout });
-    if (validation.valid) {
-      suitableLayouts.push({
-        layout,
-        sheetWidth,
-        sheetHeight,
-        bagsPerSheet: getBagsPerSheet(layout)
+  return cfg.layoutGeometry.layouts
+    .map((item) => {
+      const { sheetWidth, sheetHeight } = calcSheetSize({
+        width: appState.form.width,
+        height: appState.form.height,
+        gusset: appState.form.gusset,
+        layout: item.key
       });
-    }
-  }
-  return suitableLayouts;
-}
-
-function normalizeFormToEngine(form) {
-  let embossTypeNormalized = "Standard";
-  const embossingType = form.embossingType?.toLowerCase();
-  if (embossingType === "3d" || embossingType?.includes("deep") || embossingType?.includes("multi")) {
-    embossTypeNormalized = "3D";
-  }
-
-  const stampingSize = form.stamping ? `${form.stampingHeight}x${form.stampingWidth}` : null;
-  const embossSize = form.embossing ? `${form.embossingHeight}x${form.embossingWidth}` : null;
-
-  return {
-    width: Number(form.width),
-    height: Number(form.height),
-    gusset: Number(form.gusset),
-    quantity: Number(form.quantity),
-    paperName: form.paperName,
-    printingOption: form.printingOption,
-    inkType: form.inkType,
-    marginIndex: Number(form.marginIndex),
-    varnish: form.varnish,
-    lamination: form.lamination,
-    spotUV: Boolean(form.spotUV),
-    stamping: Boolean(form.stamping),
-    stampingSize,
-    embossing: Boolean(form.embossing),
-    embossed: Boolean(form.embossing),
-    embossSize,
-    textureEmbossing: Boolean(form.textureEmbossing),
-    textureEmboss: Boolean(form.textureEmbossing),
-    dieCut: Boolean(form.dieCut),
-    foilType: form.foilType,
-    stampingHeight: Number(form.stampingHeight),
-    stampingWidth: Number(form.stampingWidth),
-    embossingHeight: Number(form.embossingHeight),
-    embossingWidth: Number(form.embossingWidth),
-    embossType: embossTypeNormalized,
-    textureType: form.textureType?.toLowerCase() === "custom" ? "custom" : "standard",
-    newMould: form.dcMoulding === "New",
-    existingMould: form.dcMoulding === "Old",
-    dcMoulding: form.dcMoulding,
-    handles: Boolean(form.handles),
-    handleType: form.handleType || null,
-    reinforcementBoard: Boolean(form.reinforcementBoard),
-    boardType: form.boardType || null,
-    convertingLabor: Boolean(form.convertingLabor),
-    packaging: Boolean(form.packaging),
-    mockUp: Boolean(form.mockUp)
-  };
+      return { layout: item.key, sheetWidth, sheetHeight, bagsPerSheet: item.bagsPerSheet };
+    })
+    .filter((item) => validateLayout(item).valid);
 }
 
 function formatCurrency(value) {
