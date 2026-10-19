@@ -47,5 +47,3 @@
 
   API.getProfile().then((r) => fill(r.user)).catch((e) => handleError(e, $('pfMsg')));
 })();
-
-//123
