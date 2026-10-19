@@ -5,6 +5,7 @@ const pgPool = require("./db");
 const { createAdminToken, verifyAdminToken } = require("./authToken");
 const quotationRoutes = require("./router/quotationAPI");
 const adminQuotationRoutes = require("./router/adminquotationAPI");
+const quotationEngineAdminRoutes = require("./router/quotationEngineAdminAPI");
 const adminProfileRoutes = require("./router/admin-profileAPI");
 const customerProfileRoutes = require("./router/customerprofileAPI");
 
@@ -40,13 +41,17 @@ async function authorizeQuotationRateAdmin(req) {
   if (!claims) return false;
 
   const result = await pgPool.query(
-    `SELECT user_role
+    `SELECT user_id, user_email, user_name, user_role
      FROM "user"
      WHERE user_id = $1 AND LOWER(user_email) = $2 AND user_active = 1
      LIMIT 1`,
     [claims.user_id, claims.email],
   );
-  return String(result.rows[0]?.user_role || "").toLowerCase() === "admin";
+  const user = result.rows[0];
+  const role = String(user?.user_role || "").replace(/[\s_-]/g, "").toLowerCase();
+  if (!user || !["admin", "superadmin"].includes(role)) return false;
+  req.adminUser = user;
+  return true;
 }
 
 function formatQuotationAuditValue(value) {
@@ -127,6 +132,7 @@ app.get("/quotation-bag3d.js", (_req, res) => {
 });
 app.use("/api/quotation", quotationRoutes);
 app.use("/api/admin/quotation", adminQuotationRoutes);
+app.use("/api/admin/quotation-engine", quotationEngineAdminRoutes);
 app.use(legacyQuotationBackend.router);
 app.use("/api/admin/profile", adminProfileRoutes);
 app.use("/api/customer-profile", customerProfileRoutes);

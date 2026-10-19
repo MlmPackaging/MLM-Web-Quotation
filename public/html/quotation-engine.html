@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MPak Admin — Quotation Engine</title>
+  <link rel="stylesheet" href="/css/admin-quotation.css">
+  <link rel="stylesheet" href="/css/mpak-shell.css">
+  <link rel="stylesheet" href="/css/quotation-engine.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">MPak <span>Admin</span></div>
+    <nav class="page-nav" aria-label="Admin pages">
+      <a class="nav-link" href="/html/admin-quotation.html">Quotations</a>
+      <a class="nav-link active" href="/html/quotation-engine.html" aria-current="page">Quotation engine</a>
+      <a class="nav-link" href="/html/admin-profile.html">My profile</a>
+    </nav>
+    <div class="topbar-right"><span id="adminName"></span><button class="ghost" id="logoutBtn" type="button">Log out</button></div>
+  </header>
+
+  <main class="engine-main">
+    <h1>Quotation engine</h1>
+    <p class="engine-sub">Manage database-backed pricing values, tiers and options. Published versions stay immutable; edits are made in drafts.</p>
+    <p class="engine-message" id="engineMessage" role="status" aria-live="polite"></p>
+
+    <section class="engine-version panel">
+      <div class="version-heading">
+        <div><h2>Engine version</h2><p id="versionSummary"></p></div>
+        <label class="version-picker">Viewing
+          <select class="control" id="versionSelect" aria-label="Quotation engine version"></select>
+        </label>
+      </div>
+      <div class="version-actions">
+        <button class="btn primary" id="cloneVersion" type="button">Create draft from this version</button>
+        <button class="btn" id="versionHistory" type="button">Version audit history</button>
+        <button class="btn accept" id="publishVersion" type="button" hidden>Publish draft</button>
+        <button class="btn danger" id="restoreVersion" type="button" hidden>Restore this version</button>
+        <span class="version-notice" id="versionNotice"></span>
+      </div>
+    </section>
+
+    <nav class="engine-tabs" id="engineTabs" aria-label="Rate card sections">
+      <button type="button" class="engine-tab active" data-tab="parameters">Parameters</button>
+      <button type="button" class="engine-tab" data-tab="tiers">Calculation tiers</button>
+      <button type="button" class="engine-tab" data-tab="options">Options</button>
+      <button type="button" class="engine-tab" data-tab="components">Calculation components</button>
+    </nav>
+    <section class="engine-content" id="engineContent" aria-live="polite"></section>
+  </main>
+
+  <div class="history-backdrop" id="historyBackdrop" hidden></div>
+  <aside class="history-panel" id="historyPanel" hidden aria-labelledby="historyTitle">
+    <div class="history-heading">
+      <div><h2 id="historyTitle">Change history</h2><p id="historyIdentifier"></p></div>
+      <button type="button" id="closeHistory" class="history-close" aria-label="Close history">×</button>
+    </div>
+    <div id="historyEntries" class="history-entries"></div>
+  </aside>
+
+  <script src="/js/quotation-engine-admin.js"></script>
+</body>
+</html>
