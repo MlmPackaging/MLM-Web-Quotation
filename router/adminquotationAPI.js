@@ -25,13 +25,12 @@ const fail = (res, status, message) => res.status(status).json({ success: false,
 const kfmt = (n) => (Number(n) >= 1000 ? `${+(Number(n) / 1000).toFixed(1)}k` : String(n));
 
 // One-line summary of a quotation, e.g.
-// "Godiva (M)/250 x 310 x 200mm/180gsm White Kraft/<printing>/<handle>/8k/10k/15k"
-function buildDescription({ company, country, h, w, g, paperName, gsm, printingName, handleName, quantities }) {
-  const who = company ? `${company} (${country === "SG" ? "S" : "M"})` : "";
+// "250 x 310 x 200mm/180gsm White Kraft/<printing>/<handle>/8k/10k/15k"
+function buildDescription({ h, w, g, paperName, gsm, printingName, handleName, quantities }) {
   const size = h && w && g ? `${h} x ${w} x ${g}mm` : "";
   const paper = paperName ? (gsm && !/gsm/i.test(paperName) ? `${gsm}gsm ${paperName}` : paperName) : "";
   const tiers = (quantities || []).map(kfmt).join("/");
-  return [who, size, paper, printingName, handleName, tiers].filter(Boolean).join("/");
+  return [size, paper, printingName, handleName, tiers].filter(Boolean).join("/");
 }
 
 // Explains a rejected status value (database CHECK constraint / enum) instead of a vague error.
@@ -157,7 +156,6 @@ router.get("/list", async (req, res) => {
     const rows = r.rows.map((x) => ({
       ...x,
       description: buildDescription({
-        company: x.company_name, country: x.delivery_country,
         h: x.height_mm, w: x.width_mm, g: x.gusset_mm,
         paperName: x.paper_name, gsm: x.gsm, printingName: x.printing_name,
         handleName: x.handle_name, quantities: x.quantities,
@@ -289,7 +287,6 @@ router.get("/:id", requireNumericId, async (req, res) => {
         const printing = opts.printing.find((x) => x.id === (item && item.printing_id));
         const handle = opts.handles.find((x) => x.id === (item && item.handle_id));
         return buildDescription({
-          company: customer && customer.company_name, country: q.delivery_country,
           h: item && item.height_mm, w: item && item.width_mm, g: item && item.gusset_mm,
           paperName: (paper && paper.name) || (item && item.rate_paper_option_label), gsm: paper && paper.gsm,
           printingName: (printing && printing.name) || (item && item.rate_printing_option_label),
