@@ -27,7 +27,7 @@
 
     <section class="engine-version panel">
       <div class="version-heading">
-        <div><h2>Engine version</h2><p id="versionSummary"></p></div>
+        <div><h2>Engine version <span class="status-pill" id="versionStatus"></span></h2><p id="versionSummary"></p></div>
         <label class="version-picker">Viewing
           <select class="control" id="versionSelect" aria-label="Quotation engine version"></select>
         </label>
@@ -61,7 +61,20 @@
           <button type="button" class="engine-tab" data-tab="options">Options</button>
           <button type="button" class="engine-tab" data-tab="components">Calculation components</button>
         </nav>
+        <div class="engine-toolbar">
+          <label class="engine-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" id="engineSearch" placeholder="Search labels, keys, descriptions…  (Ctrl+K)" autocomplete="off" aria-label="Search this tab">
+            <span class="search-count" id="searchCount"></span>
+          </label>
+          <span class="mode-chip" id="modeChip"></span>
+          <div class="toolbar-actions">
+            <button type="button" class="engine-action" id="collapseAll"><i class="bi bi-chevron-contract" aria-hidden="true"></i> Collapse all</button>
+            <button type="button" class="engine-action" id="expandAll"><i class="bi bi-chevron-expand" aria-hidden="true"></i> Expand all</button>
+          </div>
+        </div>
         <section class="engine-content" id="engineContent" aria-live="polite"></section>
+        <p class="empty-engine" id="searchEmpty" hidden><i class="bi bi-search" aria-hidden="true"></i> No sections match your search.</p>
       </div>
     </div>
   </main>
@@ -74,6 +87,15 @@
     </div>
     <div id="historyEntries" class="history-entries"></div>
   </aside>
+
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <div class="dirty-bar" id="dirtyBar" role="status">
+    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+    <span id="dirtyBarText"></span>
+    <button type="button" class="engine-action" id="dirtyJump">Jump to first</button>
+    <button type="button" class="engine-action delete" id="dirtyDiscard">Discard all</button>
+  </div>
+  <button type="button" class="back-to-top" id="backToTop" aria-label="Back to top"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
 
   <script src="/js/quotation-engine-admin.js"></script>
 </body>
