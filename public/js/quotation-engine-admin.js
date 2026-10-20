@@ -232,6 +232,7 @@
       components: renderComponents,
     };
     $("engineContent").innerHTML = renderers[state.tab]();
+    buildSectionNav();
   }
 
   async function showHistory(identifier) {
@@ -404,6 +405,162 @@
     $("historyBackdrop").hidden = true;
     $("historyPanel").hidden = true;
   }
+
+  /* ---------- Section navigator (jump + scroll-spy + collapse) ---------- */
+  const NAV_COLLAPSE_KEY = "quotationEngineNavCollapsed";
+  const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // First matching keyword wins (skipping icons already used). Edit freely.
+  const ICON_RULES = [
+    [/paper|board|gsm|material|stock/, "bi-layers"],
+    [/print|ink|colou?r/, "bi-palette"],
+    [/handle|rope|cord|ribbon/, "bi-link-45deg"],
+    [/labou?r|worker|staff|manpower/, "bi-people"],
+    [/machine|production|speed/, "bi-gear"],
+    [/waste|wastage|scrap|spoil/, "bi-recycle"],
+    [/margin|profit|markup/, "bi-graph-up-arrow"],
+    [/freight|deliver|shipping|transport|lorry/, "bi-truck"],
+    [/pack|carton|bundle/, "bi-box-seam"],
+    [/tax|sst|gst|vat/, "bi-percent"],
+    [/discount|promo/, "bi-tag"],
+    [/plate|die|tool|setup|set-up/, "bi-tools"],
+    [/lamin|coat|finish|varnish/, "bi-brush"],
+    [/glue|adhesive|paste/, "bi-droplet"],
+    [/window|emboss|foil|special/, "bi-stars"],
+    [/size|dimension|width|height|gusset/, "bi-rulers"],
+    [/qty|quantity|moq|volume/, "bi-123"],
+    [/cost|price|rate|currency|overhead/, "bi-currency-dollar"],
+  ];
+  // Used when no keyword matches, so unmatched sections still get distinct icons.
+  const ICON_POOL = {
+    parameters: ["bi-sliders", "bi-calculator", "bi-cash-coin", "bi-clipboard-data", "bi-speedometer2", "bi-bullseye"],
+    tiers: ["bi-table", "bi-bar-chart-steps", "bi-list-ol", "bi-diagram-3", "bi-grid-3x3-gap", "bi-stack"],
+    options: ["bi-ui-checks-grid", "bi-toggles", "bi-card-checklist", "bi-puzzle", "bi-collection", "bi-gem"],
+  };
+  const ICON_DEFAULT = { parameters: "bi-sliders", tiers: "bi-table", options: "bi-ui-checks-grid" };
+
+  const nav = { sections: [], activeId: null, locked: false, lockTimer: null, ticking: false };
+
+  function pickIcon(tab, text, used) {
+    const rule = ICON_RULES.find(([pattern, icon]) => pattern.test(text) && !used.has(icon));
+    const pooled = (ICON_POOL[tab] || []).find((icon) => !used.has(icon));
+    const icon = rule ? rule[1] : (pooled || ICON_DEFAULT[tab] || "bi-dot");
+    used.add(icon);
+    return icon;
+  }
+
+  function buildSectionNav() {
+    const cards = state.tab === "components"
+      ? []
+      : [...$("engineContent").querySelectorAll(":scope > .engine-card")];
+    $("engineLayout").classList.toggle("no-nav", cards.length === 0);
+    const used = new Set();
+    nav.sections = [];
+    nav.activeId = null;
+    $("sectionNavList").innerHTML = cards.map((card, index) => {
+      const raw = card.querySelector("h3")?.textContent.trim() || `Section ${index + 1}`;
+      const label = raw.replace(/[_-]+/g, " ");
+      const id = `engine-section-${state.tab}-${index}`;
+      card.id = id;
+      nav.sections.push({ id, card });
+      const icon = pickIcon(state.tab, raw.toLowerCase(), used);
+      return `<li><button type="button" class="section-nav-item" data-target="${id}" title="${esc(label)}" aria-label="Jump to ${esc(label)}"><i class="bi ${icon}" aria-hidden="true"></i><span>${esc(label)}</span></button></li>`;
+    }).join("");
+    updateActiveSection();
+  }
+
+  function setActiveSection(id) {
+    if (nav.activeId === id) return;
+    nav.activeId = id;
+    const list = $("sectionNavList");
+    let activeButton = null;
+    list.querySelectorAll(".section-nav-item").forEach((button) => {
+      const isActive = button.dataset.target === id;
+      button.classList.toggle("active", isActive);
+      if (isActive) { button.setAttribute("aria-current", "true"); activeButton = button; }
+      else button.removeAttribute("aria-current");
+    });
+    if (!activeButton) return;
+    // keep the highlighted item visible inside the nav's own scroll area
+    const top = activeButton.offsetTop;
+    const bottom = top + activeButton.offsetHeight;
+    const behavior = prefersReducedMotion() ? "auto" : "smooth";
+    if (top < list.scrollTop) list.scrollTo({ top: Math.max(0, top - 8), behavior });
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTo({ top: bottom - list.clientHeight + 8, behavior });
+  }
+
+  function updateActiveSection() {
+    if (!nav.sections.length) return;
+    const offset = 140; // distance from viewport top at which a section counts as "current"
+    let current = nav.sections[0];
+    for (const section of nav.sections) {
+      if (section.card.getBoundingClientRect().top - offset <= 0) current = section;
+      else break;
+    }
+    const scrollable = document.documentElement.scrollHeight > window.innerHeight + 8;
+    if (scrollable && window.scrollY > 0 && window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+      current = nav.sections[nav.sections.length - 1];
+    }
+    setActiveSection(current.id);
+  }
+
+  function releaseNavLock() {
+    nav.locked = false;
+    updateActiveSection();
+  }
+
+  function jumpToSection(id) {
+    const card = $(id);
+    if (!card) return;
+    setActiveSection(id);
+    // Hold the highlight on the clicked item while the smooth scroll passes other sections.
+    nav.locked = true;
+    clearTimeout(nav.lockTimer);
+    nav.lockTimer = setTimeout(releaseNavLock, 400);
+    card.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    card.classList.remove("nav-flash");
+    void card.offsetWidth; // restart the animation if clicked twice
+    card.classList.add("nav-flash");
+    card.addEventListener("animationend", () => card.classList.remove("nav-flash"), { once: true });
+  }
+
+  function onPageScroll() {
+    if (nav.locked) {
+      clearTimeout(nav.lockTimer);
+      nav.lockTimer = setTimeout(releaseNavLock, 160); // unlock once scrolling stops
+      return;
+    }
+    if (nav.ticking) return;
+    nav.ticking = true;
+    requestAnimationFrame(() => { nav.ticking = false; updateActiveSection(); });
+  }
+
+  function setNavCollapsed(collapsed, persist = true) {
+    $("sectionNav").classList.toggle("collapsed", collapsed);
+    const toggle = $("sectionNavToggle");
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    toggle.setAttribute("aria-label", collapsed ? "Expand section navigation" : "Collapse section navigation");
+    toggle.title = collapsed ? "Expand" : "Collapse";
+    if (persist) {
+      try { localStorage.setItem(NAV_COLLAPSE_KEY, collapsed ? "1" : "0"); } catch (error) { /* storage unavailable */ }
+    }
+  }
+
+  $("sectionNavList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-target]");
+    if (button) jumpToSection(button.dataset.target);
+  });
+  $("sectionNavToggle").addEventListener("click", () => {
+    setNavCollapsed(!$("sectionNav").classList.contains("collapsed"));
+  });
+  window.addEventListener("scroll", onPageScroll, { passive: true });
+  window.addEventListener("resize", updateActiveSection);
+
+  (function initNavState() {
+    let saved = null;
+    try { saved = localStorage.getItem(NAV_COLLAPSE_KEY); } catch (error) { /* ignore */ }
+    setNavCollapsed(saved === null ? window.matchMedia("(max-width: 760px)").matches : saved === "1", false);
+  })();
 
   $("versionSelect").addEventListener("change", async (event) => {
     try {

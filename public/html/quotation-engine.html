@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/css/admin-quotation.css">
   <link rel="stylesheet" href="/css/mpak-shell.css">
   <link rel="stylesheet" href="/css/quotation-engine.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
   <header class="topbar">
@@ -40,13 +41,29 @@
       </div>
     </section>
 
-    <nav class="engine-tabs" id="engineTabs" aria-label="Rate card sections">
-      <button type="button" class="engine-tab active" data-tab="parameters">Parameters</button>
-      <button type="button" class="engine-tab" data-tab="tiers">Calculation tiers</button>
-      <button type="button" class="engine-tab" data-tab="options">Options</button>
-      <button type="button" class="engine-tab" data-tab="components">Calculation components</button>
-    </nav>
-    <section class="engine-content" id="engineContent" aria-live="polite"></section>
+        <div class="engine-layout" id="engineLayout">
+      <aside class="section-nav" id="sectionNav" aria-label="Jump to section">
+        <div class="section-nav-head">
+          <span class="section-nav-title">Sections</span>
+          <button type="button" class="section-nav-toggle" id="sectionNavToggle"
+                  aria-expanded="true" aria-controls="sectionNavList"
+                  aria-label="Collapse section navigation" title="Collapse">
+            <i class="bi bi-chevron-double-left" aria-hidden="true"></i>
+          </button>
+        </div>
+        <ul class="section-nav-list" id="sectionNavList"></ul>
+      </aside>
+
+      <div class="engine-body">
+        <nav class="engine-tabs" id="engineTabs" aria-label="Rate card sections">
+          <button type="button" class="engine-tab active" data-tab="parameters">Parameters</button>
+          <button type="button" class="engine-tab" data-tab="tiers">Calculation tiers</button>
+          <button type="button" class="engine-tab" data-tab="options">Options</button>
+          <button type="button" class="engine-tab" data-tab="components">Calculation components</button>
+        </nav>
+        <section class="engine-content" id="engineContent" aria-live="polite"></section>
+      </div>
+    </div>
   </main>
 
   <div class="history-backdrop" id="historyBackdrop" hidden></div>

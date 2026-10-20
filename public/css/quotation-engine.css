@@ -58,6 +58,78 @@
 .history-entry p { font-size: .82rem; margin: 5px 0; overflow-wrap: anywhere }
 .history-entry small { display: block; color: var(--muted); font-size: .75rem }
 .history-empty { color: var(--muted); padding: 20px 0 }
+
+/* ---------- Section navigator ---------- */
+.engine-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: start }
+.engine-layout.no-nav { grid-template-columns: minmax(0, 1fr) }
+.engine-layout.no-nav .section-nav { display: none }
+.engine-body { min-width: 0 }
+
+.section-nav {
+  position: sticky; top: 84px; /* raise/lower to sit just under your topbar */
+  width: 230px; max-height: calc(100vh - 104px);
+  display: flex; flex-direction: column;
+  background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 10px;
+  transition: width .28s ease;
+}
+.section-nav.collapsed { width: 60px }
+
+.section-nav-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 2px 2px 8px; margin-bottom: 6px; border-bottom: 1px solid var(--line);
+}
+.section-nav.collapsed .section-nav-head { justify-content: center }
+.section-nav-title {
+  font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; overflow: hidden; max-width: 150px;
+  transition: opacity .2s ease, max-width .28s ease;
+}
+.section-nav.collapsed .section-nav-title { opacity: 0; max-width: 0 }
+.section-nav-toggle {
+  flex: 0 0 auto; border: 0; background: transparent; color: var(--muted);
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  display: grid; place-items: center; transition: background .2s, color .2s;
+}
+.section-nav-toggle:hover { background: #f3faed; color: var(--forest) }
+.section-nav-toggle i { transition: transform .28s ease }
+.section-nav.collapsed .section-nav-toggle i { transform: rotate(180deg) }
+
+.section-nav-list {
+  list-style: none; margin: 0; padding: 0; position: relative;
+  display: grid; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin;
+}
+.section-nav-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: 0; border-radius: 10px; padding: 9px 10px; background: transparent;
+  color: #8a978f; /* disabled (not-current) colour */
+  font: inherit; font-size: .84rem; font-weight: 650; text-align: left; cursor: pointer;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.section-nav-item i { flex: 0 0 20px; font-size: 1.05rem; text-align: center }
+.section-nav-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.section-nav-item:hover { background: #f3faed; color: var(--forest) }
+.section-nav-item:focus-visible { outline: 2px solid var(--green-dark); outline-offset: 1px }
+.section-nav-item.active { background: var(--green-dark); color: #fff; /* enabled (current) colour */ }
+.section-nav.collapsed .section-nav-item { justify-content: center; padding: 9px 0 }
+.section-nav.collapsed .section-nav-item span { display: none }
+
+/* flash on the card you just jumped to */
+@keyframes sectionFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(76, 160, 20, .55); border-color: var(--green-dark) }
+  100% { box-shadow: 0 0 0 14px rgba(76, 160, 20, 0) }
+}
+.engine-content > .engine-card { scroll-margin-top: 96px }
+.engine-card.nav-flash { animation: sectionFlash 1s ease-out .15s }
+
+@media (max-width: 760px) {
+  .section-nav { width: 190px }
+  .section-nav.collapsed { width: 52px }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-nav, .section-nav-item, .section-nav-toggle i { transition: none }
+  .engine-card.nav-flash { animation: none }
+}
+
 @media (max-width: 640px) {
   .version-heading { flex-direction: column }
   .version-picker { width: 100% }
