@@ -19,6 +19,16 @@
     }
   }
 
+  function clearStoredUser() {
+    [localStorage, sessionStorage].forEach((storage) => {
+      try {
+        storage.removeItem("user");
+      } catch (error) {
+        console.error("Unable to clear the staff session.", error);
+      }
+    });
+  }
+
   async function request(path, options = {}) {
     const response = await fetch(`${BASE}${path}`, {
       credentials: "same-origin",
@@ -33,6 +43,7 @@
     }
     if (!response.ok) {
       if (response.status === 401) {
+        clearStoredUser();
         const returnTo = `${location.pathname}${location.search}`;
         location.href = `/login.html?returnTo=${encodeURIComponent(returnTo)}`;
       }
@@ -334,10 +345,30 @@
   async function saveParameter(button) {
     const card = button.closest("[data-parameter-id]");
     const input = card.querySelector("[data-value]");
+    const parameter = state.data.parameters.find((item) => String(item.param_id) === card.dataset.parameterId);
+    if (!parameter) {
+      message("Parameter data is unavailable. Reload the quotation engine and try again.");
+      return;
+    }
     const value = input.tagName === "SELECT" ? input.value === "true" : input.value;
     try {
       await request(`/parameters/${card.dataset.parameterId}`, json("PUT", { value }));
-      await loadRates(state.selectedVersionId);
+      if (parameter.value_type === "number") {
+        parameter.value_number = Number(value);
+        parameter.value_text = null;
+        input.value = String(parameter.value_number);
+        input.defaultValue = input.value;
+      } else if (parameter.value_type === "boolean") {
+        parameter.value_number = value ? 1 : 0;
+        parameter.value_text = null;
+        [...input.options].forEach((option) => { option.defaultSelected = option.value === String(value); });
+      } else {
+        parameter.value_text = String(value);
+        parameter.value_number = null;
+        input.defaultValue = input.value;
+      }
+      updateDelta(input);
+      refreshDirtyState();
       message("Parameter saved.", true);
     } catch (error) { message(error.message); }
   }
@@ -954,7 +985,7 @@
       scope.querySelector(".is-invalid")?.focus();
       return;
     }
-    if (!confirmOtherChanges(scope)) return;
+    if (action[0] !== "data-save-parameter" && !confirmOtherChanges(scope)) return;
     await withBusy(button, () => action[1](button));
   });
 
@@ -1024,8 +1055,7 @@
   $("closeHistory").addEventListener("click", closeHistory);
   $("historyBackdrop").addEventListener("click", closeHistory);
   $("logoutBtn").addEventListener("click", () => {
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("user");
+    clearStoredUser();
     location.href = "/login.html";
   });
   try {

@@ -6,6 +6,7 @@ The staff quotation-engine workspace is available at `/html/quotation-engine.htm
 
 - Published versions are read-only. Choose **Create draft from this version** to copy any active or archived snapshot into a new draft.
 - Edit a draft's parameters, calculation-tier values, and option records. These changes do not affect customer quotations until published.
+- Saving a parameter keeps other unsaved edits on the page in place; those edits remain unsaved until their own save action is used.
 - **Publish draft** archives the current active version and makes the draft active.
 - Select an archived version to preview its full rate card in the same editor. **Restore this version** makes that immutable snapshot active again; it does not create a new rate version.
 - Each parameter, tier cell, and option has a history viewer. Reverting a history entry clones the current active rate card, applies the old value, and publishes the clone as a new version. This retains both the current and reverted states in version history.
